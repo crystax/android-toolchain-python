@@ -86,8 +86,8 @@ fi
 AC_SUBST(VERSION)
 case $host in
   *-*-mingw*)
-  dnl To be compatible with MSVC build.
-VERSION=`echo PYTHON_VERSION | sed -e 's|\.||g'`
+  dnl To be *incompatible* with MSVC build!
+VERSION=PYTHON_VERSION
   ;;
   *)
 VERSION=PYTHON_VERSION

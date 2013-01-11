@@ -35,13 +35,13 @@ _INSTALL_SCHEMES = {
         'data'   : '{base}',
         },
     'nt': {
-        'stdlib': '{base}/Lib',
-        'platstdlib': '{base}/Lib',
-        'purelib': '{base}/Lib/site-packages',
-        'platlib': '{base}/Lib/site-packages',
-        'include': '{base}/Include',
-        'platinclude': '{base}/Include',
-        'scripts': '{base}/Scripts',
+        'stdlib': '{base}/lib/python{py_version_short}',
+        'platstdlib': '{base}/lib/python{py_version_short}',
+        'purelib': '{base}/lib/python{py_version_short}',
+        'platlib': '{base}/lib/python{py_version_short}',
+        'include': '{base}/include/python{py_version_short}',
+        'platinclude': '{base}/include/python{py_version_short}',
+        'scripts': '{base}/bin',
         'data'   : '{base}',
         },
     'os2': {
@@ -64,12 +64,12 @@ _INSTALL_SCHEMES = {
         'data'   : '{userbase}',
         },
     'nt_user': {
-        'stdlib': '{userbase}/Python{py_version_nodot}',
-        'platstdlib': '{userbase}/Python{py_version_nodot}',
-        'purelib': '{userbase}/Python{py_version_nodot}/site-packages',
-        'platlib': '{userbase}/Python{py_version_nodot}/site-packages',
-        'include': '{userbase}/Python{py_version_nodot}/Include',
-        'scripts': '{userbase}/Scripts',
+        'stdlib': '{userbase}/lib/python{py_version_short}',
+        'platstdlib': '{userbase}/lib/python{py_version_short}',
+        'purelib': '{userbase}/lib/python{py_version_short}',
+        'platlib': '{userbase}/lib/python{py_version_short}',
+        'include': '{userbase}/include/python{py_version_short}',
+        'scripts': '{userbase}/bin',
         'data'   : '{userbase}',
         },
     'posix_user': {
@@ -319,7 +319,7 @@ def _init_non_posix(vars):
     vars['INCLUDEPY'] = get_path('include')
     vars['SO'] = '.pyd'
     vars['EXE'] = '.exe'
-    vars['VERSION'] = _PY_VERSION_SHORT_NO_DOT
+    vars['VERSION'] = _PY_VERSION_SHORT
     vars['BINDIR'] = os.path.dirname(abspath(sys.executable))
 
 #

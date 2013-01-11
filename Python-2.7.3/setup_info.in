@@ -1,0 +1,3 @@
+# file with data from configure file
+
+READLINE_LIBS=@READLINE_LIBS@

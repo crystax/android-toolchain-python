@@ -3,7 +3,15 @@
 """
 import sys
 import os
-from os.path import pardir, realpath
+# revert patch from issue 7880 :
+#  - the test case (from issue 7880) works for me
+#  - realpath break cross compilation
+# => so lets use abspath again ;)
+# NOTE "Issue #6612: Fix site and sysconfig to catch os.getcwd() error,
+# eg. if the current directory was deleted." replase all occurrence of
+# realpath with _safe_realpath. Instead to update _safe_realpath to use
+# abspath the cross-compilation revert all!
+from os.path import pardir, abspath
 
 _INSTALL_SCHEMES = {
     'posix_prefix': {
@@ -94,27 +102,21 @@ _EXEC_PREFIX = os.path.normpath(sys.exec_prefix)
 _CONFIG_VARS = None
 _USER_BASE = None
 
-def _safe_realpath(path):
-    try:
-        return realpath(path)
-    except OSError:
-        return path
-
 if sys.executable:
-    _PROJECT_BASE = os.path.dirname(_safe_realpath(sys.executable))
+    _PROJECT_BASE = os.path.dirname(abspath(sys.executable))
 else:
     # sys.executable can be empty if argv[0] has been changed and Python is
     # unable to retrieve the real program name
-    _PROJECT_BASE = _safe_realpath(os.getcwd())
+    _PROJECT_BASE = abspath(os.getcwd())
 
 if os.name == "nt" and "pcbuild" in _PROJECT_BASE[-8:].lower():
-    _PROJECT_BASE = _safe_realpath(os.path.join(_PROJECT_BASE, pardir))
+    _PROJECT_BASE = abspath(os.path.join(_PROJECT_BASE, pardir))
 # PC/VS7.1
 if os.name == "nt" and "\\pc\\v" in _PROJECT_BASE[-10:].lower():
-    _PROJECT_BASE = _safe_realpath(os.path.join(_PROJECT_BASE, pardir, pardir))
+    _PROJECT_BASE = abspath(os.path.join(_PROJECT_BASE, pardir, pardir))
 # PC/AMD64
 if os.name == "nt" and "\\pcbuild\\amd64" in _PROJECT_BASE[-14:].lower():
-    _PROJECT_BASE = _safe_realpath(os.path.join(_PROJECT_BASE, pardir, pardir))
+    _PROJECT_BASE = abspath(os.path.join(_PROJECT_BASE, pardir, pardir))
 
 def is_python_build():
     for fn in ("Setup.dist", "Setup.local"):
@@ -313,7 +315,7 @@ def _init_non_posix(vars):
     vars['SO'] = '.pyd'
     vars['EXE'] = '.exe'
     vars['VERSION'] = _PY_VERSION_SHORT_NO_DOT
-    vars['BINDIR'] = os.path.dirname(_safe_realpath(sys.executable))
+    vars['BINDIR'] = os.path.dirname(abspath(sys.executable))
 
 #
 # public APIs

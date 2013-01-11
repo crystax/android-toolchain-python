@@ -11,6 +11,7 @@ AC_REVISION($Revision$)
 AC_INIT(python, PYTHON_VERSION, http://bugs.python.org/)
 AC_CONFIG_SRCDIR([Include/object.h])
 AC_CONFIG_HEADER(pyconfig.h)
+AC_CANONICAL_HOST
 
 dnl Ensure that if prefix is specified, it does not end in a slash. If
 dnl it does, we get path names containing '//' which is both ugly and
@@ -41,6 +42,46 @@ AH_BOTTOM([
 grep -v 'define PACKAGE_' <confdefs.h >confdefs.h.new
 rm confdefs.h
 mv confdefs.h.new confdefs.h
+
+dnl makefile conditional (for future use)
+if test "x$cross_compiling" = xyes; then
+  CROSS_ON=''
+  CROSS_OFF='#'
+else
+  CROSS_ON='#'
+  CROSS_OFF=''
+fi
+AC_SUBST(CROSS_ON)
+AC_SUBST(CROSS_OFF)
+
+AC_PROG_LN_S
+if test "x$cross_compiling" = xyes; then
+  AC_MSG_WARN([cross-compilation is incomplete])
+
+  dnl In cross-compilation environment we need python from
+  dnl the build system (for future use)
+  AC_PATH_PROG(SYSPYTHON, python, [none],
+    [$PATH:/usr/local/bin]
+  )
+  if test "x$SYSPYTHON" = xnone; then
+    AC_MSG_ERROR([python program is required in cross-compilation environment])
+  fi
+  SYSPYOSNAME=`${SYSPYTHON} -c "import os; print os.name"`
+  case $SYSPYOSNAME in
+  posix)
+    dnl On posix distutils read variables from installed makefile.
+    dnl We will do some hacks based on distutils internals to overcome
+    dnl this limitation:
+    dnl - we link system python in build directory so that it will
+    dnl   read generated file.
+    dnl As result from sysconfig.get_config_vars we will get our
+    dnl setting (for the host system) like SO, CFLAGS, CPPFLAGS,
+    dnl LDFLAGS instead those for the build system.
+    rm -f syspython
+    ${LN_S} ${SYSPYTHON} syspython
+    SYSPYTHON=./syspython
+  esac
+fi
 
 AC_SUBST(VERSION)
 VERSION=PYTHON_VERSION
@@ -275,8 +316,35 @@ AC_SUBST(FRAMEWORKINSTALLAPPSPREFIX)
 ##                           [Use (OpenStep|Rhapsody) dynamic linker]))
 ##
 # Set name for machine-dependent library files
+dnl Now configure script support cross-compilation and detection of host
+dnl system based on value of $ac_sys_system and/or $ac_sys_release
+dnl has to be avoided. It is superseded by "host triplet"(cpu-verdor-os).
+dnl FIXME: replace all cases based on $ac_sys_system and/or $ac_sys_release
+dnl with case based on $host ("host triplet") or $host_os.
+dnl Also cases with MACHDEP may be replaces by $host or $host_os. Note
+dnl script may not set this variable if cross compiling.
+
+dnl Next two variables are intended to be passed through makefile to other
+dnl scripts. As example setup.py check for CPU(machine) and OS(platform).
+HOST_CPU=$host_cpu
+AC_SUBST(HOST_CPU)
+HOST_OS=$host_os
+AC_SUBST(HOST_OS)
+
 AC_SUBST(MACHDEP)
+if test "x$cross_compiling" = xyes; then
+AC_MSG_WARN([
+  May be value of MACHDEP isn't correct if cross-compiling.
+  You may tweak configure script for you host system: $host])
+fi
 AC_MSG_CHECKING(MACHDEP)
+dnl Note that $host_os cann't be translated directly into python
+dnl specific $MACHDEP. As example on linux (kernel 2.x) the script below
+dnl will set MACHDEP to "linux2" but $host_os is only "linux".
+dnl Another point is in cross-compilation environment we cannot distinguish
+dnl linux with 1.x(if someone still use it) and 2.x host kernels.
+dnl As example setup.py check for linux2(get from sys.platform) and will
+dnl install some host plaform specific files into subdirectory "plat-linux2".
 if test -z "$MACHDEP"
 then
 	ac_sys_system=`uname -s`
@@ -292,12 +360,19 @@ then
 			   tr -d '[/ ]' | sed 's/^[[A-Z]]\.//' | sed 's/\..*//'`
 	MACHDEP="$ac_md_system$ac_md_release"
 
+	dnl override MACHDEP only on certain host systems
+	case $host in
+	*-*-cygwin*) MACHDEP="cygwin";;
+	*-*-darwin*) MACHDEP="darwin";;
+	*-*-atheos*) MACHDEP="atheos";;
+	esac
+
 	case $MACHDEP in
 	linux*) MACHDEP="linux2";;
 	cygwin*) MACHDEP="cygwin";;
 	darwin*) MACHDEP="darwin";;
 	atheos*) MACHDEP="atheos";;
-        irix646) MACHDEP="irix6";;
+	irix646) MACHDEP="irix6";;
 	'')	MACHDEP="unknown";;
 	esac
 fi
@@ -446,10 +521,6 @@ AC_SUBST(EXPORT_MACOSX_DEPLOYMENT_TARGET)
 CONFIGURE_MACOSX_DEPLOYMENT_TARGET=
 EXPORT_MACOSX_DEPLOYMENT_TARGET='#'
 
-AC_MSG_CHECKING(machine type as reported by uname -m)
-ac_sys_machine=`uname -m`
-AC_MSG_RESULT($ac_sys_machine)
-
 # checks for alternative programs
 
 # compiler flags are generated in two sets, BASECFLAGS and OPT.  OPT is just
@@ -575,6 +646,13 @@ fi
 AC_USE_SYSTEM_EXTENSIONS
 
 # Check for unsupported systems
+case $host in
+  *-*-beos*)
+    AC_MSG_WARN([
+  Support for BeOS is deprecated as of Python 2.6.
+  See PEP 11 for the gory details.
+  ]);;
+esac
 case $ac_sys_system/$ac_sys_release in
 atheos*|Linux*/1*)
    echo This system \($ac_sys_system/$ac_sys_release\) is no longer supported.
@@ -728,22 +806,23 @@ AC_MSG_RESULT($enable_shared)
 
 AC_MSG_CHECKING(for --enable-profiling)
 AC_ARG_ENABLE(profiling,
-              AS_HELP_STRING([--enable-profiling], [enable C-level code profiling]),
-[ac_save_cc="$CC"
- CC="$CC -pg"
- AC_RUN_IFELSE([AC_LANG_SOURCE([[int main() { return 0; }]])],
-   [ac_enable_profiling="yes"],
-   [ac_enable_profiling="no"],
-   [ac_enable_profiling="no"])
- CC="$ac_save_cc"])
-AC_MSG_RESULT($ac_enable_profiling)
+              AS_HELP_STRING([--enable-profiling], [enable C-level code profiling]))
+if test "x$enable_profiling" = xyes; then
+  py_save_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS -pg"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[]])],
+    [],
+    [enable_profiling=no])
+  CFLAGS="$py_save_CFLAGS"
+else
+  enable_profiling=no
+fi
+AC_MSG_RESULT($enable_profiling)
 
-case "$ac_enable_profiling" in
-    "yes")
-	BASECFLAGS="-pg $BASECFLAGS"
-	LDFLAGS="-pg $LDFLAGS"
-    ;;
-esac
+if test "x$enable_profiling" = xyes; then
+  BASECFLAGS="-pg $BASECFLAGS"
+  LDFLAGS="-pg $LDFLAGS"
+fi
 
 AC_MSG_CHECKING(LDLIBRARY)
 
@@ -835,8 +914,7 @@ fi
 AC_MSG_RESULT($LDLIBRARY)
 
 AC_PROG_RANLIB
-AC_SUBST(AR)
-AC_CHECK_PROGS(AR, ar aal, ar)
+AC_CHECK_TOOLS(AR, ar aal, ar)
 
 # tweak ARFLAGS only if the user didn't set it on the command line
 AC_SUBST(ARFLAGS)
@@ -995,7 +1073,7 @@ yes)
     # if using gcc on alpha, use -mieee to get (near) full IEEE 754
     # support.  Without this, treatment of subnormals doesn't follow
     # the standard.
-    case $ac_sys_machine in
+    case $host in
          alpha*)
                 BASECFLAGS="$BASECFLAGS -mieee"
                 ;;
@@ -2717,7 +2795,11 @@ then
 else
 	MACHDEP_OBJS="$MACHDEP_OBJS $extra_machdep_objs"
 fi
-AC_MSG_RESULT(MACHDEP_OBJS)
+if test -z "$MACHDEP_OBJS"; then
+  AC_MSG_RESULT([none])
+else
+  AC_MSG_RESULT([$MACHDEP_OBJS])
+fi
 
 # checks for library functions
 AC_CHECK_FUNCS(alarm setitimer getitimer bind_textdomain_codeset chown \
@@ -3139,7 +3221,7 @@ fi
 
 AC_MSG_RESULT($ac_cv_buggy_getaddrinfo)
 
-if test $have_getaddrinfo = no -o "$ac_cv_buggy_getaddrinfo" = yes
+if test $have_getaddrinfo = no || test "$ac_cv_buggy_getaddrinfo" = yes
 then
 	if test $ipv6 = yes
 	then
@@ -3648,6 +3730,7 @@ then
 fi
 
 # Multiprocessing check for broken sem_getvalue
+if test $ac_cv_func_sem_getvalue = yes; then
 AC_MSG_CHECKING(for broken sem_getvalue)
 AC_CACHE_VAL(ac_cv_broken_sem_getvalue,
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
@@ -3681,6 +3764,7 @@ if test $ac_cv_broken_sem_getvalue = yes
 then
   AC_DEFINE(HAVE_BROKEN_SEM_GETVALUE, 1,
   [define to 1 if your sem_getvalue is broken.])
+fi
 fi
 
 # determine what size digit to use for Python's longs
@@ -3865,7 +3949,7 @@ LIBS_no_readline=$LIBS
 # with setup.py.
 py_cv_lib_readline=no
 AC_MSG_CHECKING([how to link readline libs])
-for py_libtermcap in "" ncursesw ncurses curses termcap; do
+for py_libtermcap in "" tinfo ncursesw ncurses curses termcap; do
   if test -z "$py_libtermcap"; then
     READLINE_LIBS="-lreadline"
   else
@@ -3878,9 +3962,9 @@ for py_libtermcap in "" ncursesw ncurses curses termcap; do
   if test $py_cv_lib_readline = yes; then
     break
   fi
+  READLINE_LIBS=
 done
-# Uncomment this line if you want to use READINE_LIBS in Makefile or scripts
-#AC_SUBST([READLINE_LIBS])
+AC_SUBST([READLINE_LIBS])
 if test $py_cv_lib_readline = no; then
   AC_MSG_RESULT([none])
 else
@@ -4163,26 +4247,34 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <curses.h>]], [[void *x=resizeterm
   [AC_MSG_RESULT(no)]
 )
 
-AC_MSG_CHECKING(for /dev/ptmx)
+AC_MSG_NOTICE([checking for device files])
 
-if test -r /dev/ptmx
-then
-  AC_MSG_RESULT(yes)
-  AC_DEFINE(HAVE_DEV_PTMX, 1,
-  [Define if we have /dev/ptmx.])
-else
-  AC_MSG_RESULT(no)
+dnl NOTE: Inform user how to proceed with files when cross compiling.
+if test "x$cross_compiling" = xyes; then
+  if test "${ac_cv_file__dev_ptmx+set}" != set; then
+    AC_MSG_CHECKING([for /dev/ptmx])
+    AC_MSG_RESULT([not set])
+    AC_MSG_ERROR([set ac_cv_file__dev_ptmx to yes/no in your CONFIG_SITE file when cross compiling])
+  fi
+  if test "${ac_cv_file__dev_ptc+set}" != set; then
+    AC_MSG_CHECKING([for /dev/ptc])
+    AC_MSG_RESULT([not set])
+    AC_MSG_ERROR([set ac_cv_file__dev_ptc to yes/no in your CONFIG_SITE file when cross compiling])
+  fi
 fi
 
-AC_MSG_CHECKING(for /dev/ptc)
-
-if test -r /dev/ptc
-then
-  AC_MSG_RESULT(yes)
+# FIXME: autoconf macro AC_CHECK_FILES is better but require additional
+# changes in posixmodule.c : 's/HAVE_DEV_/HAVE__DEV_/g'
+# To keep patch minimal I left defines as before.
+AC_CHECK_FILE(/dev/ptmx, [], [])
+if test "x$ac_cv_file__dev_ptmx" = xyes; then
+  AC_DEFINE(HAVE_DEV_PTMX, 1,
+  [Define to 1 if you have the /dev/ptmx device file.])
+fi
+AC_CHECK_FILE(/dev/ptc, [], [])
+if test "x$ac_cv_file__dev_ptc" = xyes; then
   AC_DEFINE(HAVE_DEV_PTC, 1,
-  [Define if we have /dev/ptc.])
-else
-  AC_MSG_RESULT(no)
+  [Define to 1 if you have the /dev/ptc device file.])
 fi
 
 if test "$have_long_long" = yes
@@ -4320,36 +4412,28 @@ done
 AC_MSG_RESULT(done)
 
 # generate output files
-AC_CONFIG_FILES(Makefile.pre Modules/Setup.config Misc/python.pc)
-AC_CONFIG_FILES([Modules/ld_so_aix], [chmod +x Modules/ld_so_aix])
-AC_OUTPUT
+AC_CONFIG_COMMANDS_PRE([
+AC_MSG_NOTICE([creating Modules/Setup])
 
-echo "creating Modules/Setup"
 if test ! -f Modules/Setup
 then
 	cp $srcdir/Modules/Setup.dist Modules/Setup
 fi
 
-echo "creating Modules/Setup.local"
+AC_MSG_NOTICE([creating Modules/Setup.local])
 if test ! -f Modules/Setup.local
 then
 	echo "# Edit this file for local setup changes" >Modules/Setup.local
-fi
+fi])
 
-echo "creating Makefile"
-$SHELL $srcdir/Modules/makesetup -c $srcdir/Modules/config.c.in \
+AC_CONFIG_COMMANDS([Makefile],
+[$SHELL $srcdir/Modules/makesetup -c $srcdir/Modules/config.c.in \
 			-s Modules Modules/Setup.config \
 			Modules/Setup.local Modules/Setup
 
-case $ac_sys_system in
-BeOS)
-        AC_MSG_WARN([
 
-  Support for BeOS is deprecated as of Python 2.6.
-  See PEP 11 for the gory details.
-  ])
-  ;;
-*) ;;
-esac
-
-mv config.c Modules
+mv config.c Modules])
+AC_CONFIG_FILES([setup_info])
+AC_CONFIG_FILES([Makefile.pre Modules/Setup.config Misc/python.pc])
+AC_CONFIG_FILES([Modules/ld_so_aix], [chmod +x Modules/ld_so_aix])
+AC_OUTPUT

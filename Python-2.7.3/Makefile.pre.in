@@ -187,6 +187,10 @@ BUILDPYTHON=	python$(BUILDEXE)
 PROFILE_TASK=	$(srcdir)/Tools/pybench/pybench.py -n 2 --with-gc --with-syscheck
 #PROFILE_TASK=	$(srcdir)/Lib/test/regrtest.py
 
+# Don't define HOST_OS as makefile macro !
+@CROSS_ON@RUNPYTHON=	HOST_OS=@HOST_OS@ @SYSPYTHON@
+@CROSS_OFF@RUNPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON)
+
 # === Definitions added by makesetup ===
 
 
@@ -402,14 +406,14 @@ $(BUILDPYTHON):	Modules/python.o $(LIBRARY) $(LDLIBRARY)
 			$(BLDLIBRARY) $(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST)
 
 platform: $(BUILDPYTHON)
-	$(RUNSHARED) ./$(BUILDPYTHON) -E -c 'import sys ; from sysconfig import get_platform ; print get_platform()+"-"+sys.version[0:3]' >platform
+	$(RUNPYTHON) -E -c 'import sys ; from sysconfig import get_platform ; print get_platform()+"-"+sys.version[0:3]' >platform
 
 
 # Build the shared modules
 sharedmods: $(BUILDPYTHON)
 	@case $$MAKEFLAGS in \
-	*s*) $(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' ./$(BUILDPYTHON) -E $(srcdir)/setup.py -q build;; \
-	*) $(RUNSHARED) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' ./$(BUILDPYTHON) -E $(srcdir)/setup.py build;; \
+	*s*) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' $(RUNPYTHON) -E $(srcdir)/setup.py -q build;; \
+	*) CC='$(CC)' LDSHARED='$(BLDSHARED)' OPT='$(OPT)' $(RUNPYTHON) -E $(srcdir)/setup.py build;; \
 	esac
 
 # Build static library
@@ -426,10 +430,10 @@ $(LIBRARY): $(LIBRARY_OBJS)
 
 libpython$(VERSION).so: $(LIBRARY_OBJS)
 	if test $(INSTSONAME) != $(LDLIBRARY); then \
-		$(BLDSHARED) -Wl,-h$(INSTSONAME) -o $(INSTSONAME) $(LIBRARY_OBJS) $(MODLIBS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
+		$(LDSHARED) -Wl,-h$(INSTSONAME) -o $(INSTSONAME) $(LIBRARY_OBJS) $(MODLIBS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
 		$(LN) -f $(INSTSONAME) $@; \
 	else \
-		$(BLDSHARED) -o $@ $(LIBRARY_OBJS) $(MODLIBS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
+		$(LDSHARED) -o $@ $(LIBRARY_OBJS) $(MODLIBS) $(SHLIBS) $(LIBC) $(LIBM) $(LDLAST); \
 	fi
 
 libpython$(VERSION).dylib: $(LIBRARY_OBJS)
@@ -485,18 +489,17 @@ $(DLLLIBRARY) libpython$(VERSION).dll.a: $(LIBRARY_OBJS)
 oldsharedmods: $(SHAREDMODS)
 
 
+setup_info: setup_info.in config.status
+	$(SHELL) ./config.status $@
+
+
 Makefile Modules/config.c: Makefile.pre \
 				$(srcdir)/Modules/config.c.in \
 				$(MAKESETUP) \
 				Modules/Setup.config \
 				Modules/Setup \
 				Modules/Setup.local
-	$(SHELL) $(MAKESETUP) -c $(srcdir)/Modules/config.c.in \
-				-s Modules \
-				Modules/Setup.config \
-				Modules/Setup.local \
-				Modules/Setup
-	@mv config.c Modules
+	$(SHELL) ./config.status Makefile
 	@echo "The Makefile was updated, you may need to re-run make."
 
 
@@ -539,6 +542,7 @@ Modules/python.o: $(srcdir)/Modules/python.c
 	$(MAINCC) -c $(PY_CFLAGS) -o $@ $(srcdir)/Modules/python.c
 
 
+# FIXME: next may fail in cross-compilation environment
 # Use a stamp file to prevent make -j invoking pgen twice
 $(GRAMMAR_H) $(GRAMMAR_C): Parser/pgen.stamp
 Parser/pgen.stamp: $(PGEN) $(GRAMMAR_INPUT)
@@ -708,6 +712,7 @@ $(LIBRARY_OBJS) $(MODOBJS) Modules/python.o: $(PYTHON_HEADERS)
 
 TESTOPTS=	-l $(EXTRATESTOPTS)
 TESTPROG=	$(srcdir)/Lib/test/regrtest.py
+# FIXME: next test may fail in cross-compilation environment
 TESTPYTHON=	$(RUNSHARED) ./$(BUILDPYTHON) -Wd -3 -E -tt $(TESTPYTHONOPTS)
 test:		all platform
 		-find $(srcdir)/Lib -name '*.py[co]' -print | xargs rm -f
@@ -938,26 +943,26 @@ libinstall:	build_all $(srcdir)/Lib/$(PLATDIR) $(srcdir)/Modules/xxmodule.c
 		$(INSTALL_DATA) $(srcdir)/Modules/xxmodule.c \
 			$(DESTDIR)$(LIBDEST)/distutils/tests ; \
 	fi
-	PYTHONPATH=$(DESTDIR)$(LIBDEST)  $(RUNSHARED) \
-		./$(BUILDPYTHON) -Wi -tt $(DESTDIR)$(LIBDEST)/compileall.py \
+	PYTHONPATH=$(DESTDIR)$(LIBDEST) \
+		$(RUNPYTHON) -Wi -tt $(DESTDIR)$(LIBDEST)/compileall.py \
 		-d $(LIBDEST) -f \
 		-x 'bad_coding|badsyntax|site-packages|lib2to3/tests/data' \
 		$(DESTDIR)$(LIBDEST)
-	PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
-		./$(BUILDPYTHON) -Wi -tt -O $(DESTDIR)$(LIBDEST)/compileall.py \
+	PYTHONPATH=$(DESTDIR)$(LIBDEST) \
+		$(RUNPYTHON) -Wi -tt -O $(DESTDIR)$(LIBDEST)/compileall.py \
 		-d $(LIBDEST) -f \
 		-x 'bad_coding|badsyntax|site-packages|lib2to3/tests/data' \
 		$(DESTDIR)$(LIBDEST)
-	-PYTHONPATH=$(DESTDIR)$(LIBDEST)  $(RUNSHARED) \
-		./$(BUILDPYTHON) -Wi -t $(DESTDIR)$(LIBDEST)/compileall.py \
+	-PYTHONPATH=$(DESTDIR)$(LIBDEST) \
+		$(RUNPYTHON) -Wi -t $(DESTDIR)$(LIBDEST)/compileall.py \
 		-d $(LIBDEST)/site-packages -f \
 		-x badsyntax $(DESTDIR)$(LIBDEST)/site-packages
-	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
-		./$(BUILDPYTHON) -Wi -t -O $(DESTDIR)$(LIBDEST)/compileall.py \
+	-PYTHONPATH=$(DESTDIR)$(LIBDEST) \
+		$(RUNPYTHON) -Wi -t -O $(DESTDIR)$(LIBDEST)/compileall.py \
 		-d $(LIBDEST)/site-packages -f \
 		-x badsyntax $(DESTDIR)$(LIBDEST)/site-packages
-	-PYTHONPATH=$(DESTDIR)$(LIBDEST) $(RUNSHARED) \
-		./$(BUILDPYTHON) -Wi -t -c "import lib2to3.pygram, lib2to3.patcomp;lib2to3.patcomp.PatternCompiler()"
+	-PYTHONPATH=$(DESTDIR)$(LIBDEST) \
+		$(RUNPYTHON) -Wi -t -c "import lib2to3.pygram, lib2to3.patcomp;lib2to3.patcomp.PatternCompiler()"
 
 # Create the PLATDIR source directory, if one wasn't distributed..
 $(srcdir)/Lib/$(PLATDIR):
@@ -1062,7 +1067,7 @@ libainstall:	all python-config
 # Install the dynamically loadable modules
 # This goes into $(exec_prefix)
 sharedinstall: sharedmods
-	$(RUNSHARED) ./$(BUILDPYTHON) -E $(srcdir)/setup.py install \
+	$(RUNPYTHON) -E $(srcdir)/setup.py install \
 	   	--prefix=$(prefix) \
 		--install-scripts=$(BINDIR) \
 		--install-platlib=$(DESTSHARED) \
@@ -1100,7 +1105,7 @@ frameworkinstallstructure:	$(LDLIBRARY)
 		fi; \
 	done
 	$(LN) -fsn include/python$(VERSION) $(DESTDIR)$(prefix)/Headers
-	sed 's/%VERSION%/'"`$(RUNSHARED) ./$(BUILDPYTHON) -c 'import platform; print platform.python_version()'`"'/g' < $(RESSRCDIR)/Info.plist > $(DESTDIR)$(prefix)/Resources/Info.plist
+	sed 's/%VERSION%/'"`$(RUNPYTHON) -c 'import platform; print platform.python_version()'`"'/g' < $(RESSRCDIR)/Info.plist > $(DESTDIR)$(prefix)/Resources/Info.plist
 	$(LN) -fsn $(VERSION) $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/Versions/Current
 	$(LN) -fsn Versions/Current/$(PYTHONFRAMEWORK) $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/$(PYTHONFRAMEWORK)
 	$(LN) -fsn Versions/Current/Headers $(DESTDIR)$(PYTHONFRAMEWORKINSTALLDIR)/Headers
@@ -1134,20 +1139,19 @@ frameworkinstallextras:
 
 # This installs a few of the useful scripts in Tools/scripts
 scriptsinstall:
-	SRCDIR=$(srcdir) $(RUNSHARED) \
-	./$(BUILDPYTHON) $(srcdir)/Tools/scripts/setup.py install \
+	SRCDIR=$(srcdir) \
+	$(RUNPYTHON) $(srcdir)/Tools/scripts/setup.py install \
 	--prefix=$(prefix) \
 	--install-scripts=$(BINDIR) \
 	--root=$(DESTDIR)/
 
 # Build the toplevel Makefile
 Makefile.pre: Makefile.pre.in config.status
-	CONFIG_FILES=Makefile.pre CONFIG_HEADERS= $(SHELL) config.status
-	$(MAKE) -f Makefile.pre Makefile
+	$(SHELL) ./config.status $@
 
 # Run the configure script.
 config.status:	$(srcdir)/configure
-	$(SHELL) $(srcdir)/configure $(CONFIG_ARGS)
+	$(SHELL) ./config.status --recheck
 
 .PRECIOUS: config.status $(BUILDPYTHON) Makefile Makefile.pre
 
@@ -1162,8 +1166,8 @@ reindent:
 # Rerun configure with the same options as it was run last time,
 # provided the config.status script exists
 recheck:
-	$(SHELL) config.status --recheck
-	$(SHELL) config.status
+	$(SHELL) ./config.status --recheck
+	$(SHELL) ./config.status
 
 # Rebuild the configure script from configure.in; also rebuild pyconfig.h.in
 autoconf:
@@ -1260,7 +1264,7 @@ funny:
 
 # Perform some verification checks on any modified files.
 patchcheck:
-	$(RUNSHARED) ./$(BUILDPYTHON) $(srcdir)/Tools/scripts/patchcheck.py
+	$(RUNPYTHON) $(srcdir)/Tools/scripts/patchcheck.py
 
 # Dependencies
 

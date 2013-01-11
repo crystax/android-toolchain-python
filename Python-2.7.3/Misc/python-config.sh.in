@@ -1,0 +1,69 @@
+#!/bin/sh
+
+exit_with_usage ()
+{
+    echo "Usage: $0 --prefix|--exec-prefix|--includes|--libs|--cflags|--ldflags|--help"
+    exit 1
+}
+
+prefix="@prefix@"
+exec_prefix="@exec_prefix@"
+includedir="@includedir@"
+VERSION="@VERSION@"
+#libdir="@libdir@"
+libdir=$prefix/lib/python$VERSION/config
+LIBM="@LIBM@"
+LIBC="@LIBC@"
+SYSLIBS="$LIBM $LIBC"
+LIBS="@LIBS@ $SYSLIBS -lpython$VERSION"
+ABIFLAGS="@ABIFLAGS@"
+BASECFLAGS="@BASECFLAGS@"
+CFLAGS="@CFLAGS@"
+LDLIBRARY="@LDLIBRARY@"
+LINKFORSHARED="@LINKFORSHARED@"
+OPT="@OPT@"
+
+for ARG in $*
+do
+    case $ARG in
+        --prefix)
+            echo $prefix
+            exit 0
+        ;;
+        --exec-prefix)
+            echo $exec_prefix
+            exit 0
+        ;;
+        --includes)
+            echo -I$includedir/python$VERSION
+            exit 0
+        ;;
+        --libs)
+            echo $LIBS
+            exit 0
+        ;;
+        --cflags)
+            echo -I$includedir/python$VERSION $BASECFLAGS $CFLAGS $OPT
+            exit 0
+        ;;
+        --ldflags)
+        # I'm not handling the case of not Py_ENABLE_SHARED here.
+        # As there's no AC_SUBST for Py_ENABLE_SHARED (though I should just
+        # add that to be honest with you!)
+        # From python-config there's:
+        # if not getvar('Py_ENABLE_SHARED'):
+        #     libs.insert(0, '-L' + getvar('LIBPL'))
+        #     libs.extend(getvar('LINKFORSHARED').split())
+            echo -L$libdir $LIBS $LINKFORSHARED
+            exit 0
+        ;;
+        *.py)
+        # configuring GDB uses:
+        # ${python_prog} ${srcdir}/python/python-config.py --includes
+        # so skip any .py files passed as arguments.
+        ;;
+        *)
+            exit_with_usage
+        ;;
+esac
+done

@@ -987,10 +987,12 @@ $(srcdir)/Lib/$(PLATDIR):
 	export EXE; EXE="$(BUILDEXE)"; \
 	cd $(srcdir)/Lib/$(PLATDIR); $(RUNSHARED) ./regen $(CC)
 
-python-config: $(srcdir)/Misc/python-config.in
+python-config: $(srcdir)/Misc/python-config.in $(srcdir)/Misc/python-config.sh.in
 	# Substitution happens here, as the completely-expanded BINDIR
 	# is not available in configure
 	sed -e "s,@EXENAME@,$(BINDIR)/python$(VERSION)$(EXE)," < $(srcdir)/Misc/python-config.in >python-config
+	# Replace makefile compat. variable references with shell script compat. ones
+	sed -e "s,\$$(\([A-Za-z0-9_]*\)),\$$\{\1\},g" < Misc/python-config.sh >python-config.sh
 
 # Install the include files
 INCLDIRSTOMAKE=$(INCLUDEDIR) $(CONFINCLUDEDIR) $(INCLUDEPY) $(CONFINCLUDEPY)
@@ -1049,6 +1051,8 @@ libainstall:	all python-config
 	$(INSTALL_SCRIPT) $(srcdir)/Modules/makesetup $(DESTDIR)$(LIBPL)/makesetup
 	$(INSTALL_SCRIPT) $(srcdir)/install-sh $(DESTDIR)$(LIBPL)/install-sh
 	$(INSTALL_SCRIPT) python-config $(DESTDIR)$(BINDIR)/python$(VERSION)-config
+	$(INSTALL_SCRIPT) python-config.sh $(DESTDIR)$(BINDIR)/python-config.sh
+
 	rm python-config
 	@if [ -s Modules/python.exp -a \
 		"`echo $(MACHDEP) | sed 's/^\(...\).*/\1/'`" = "aix" ]; then \

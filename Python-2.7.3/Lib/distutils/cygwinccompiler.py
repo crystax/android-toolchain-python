@@ -55,6 +55,7 @@ from distutils.unixccompiler import UnixCCompiler
 from distutils.file_util import write_file
 from distutils.errors import DistutilsExecError, CompileError, UnknownFileError
 from distutils import log
+from subprocess import Popen, PIPE
 
 def get_msvcr():
     """Include the appropriate MSVC runtime library if Python was built
@@ -442,7 +443,13 @@ def get_versions():
     from distutils.spawn import find_executable
     import re
 
-    gcc_exe = find_executable('gcc')
+    gcc_exe = os.environ.get('CC') or find_executable('gcc')
+    ld_exe = find_executable('ld')
+    out = Popen(gcc_exe+' --print-prog-name ld', shell=True, stdout=PIPE).stdout
+    try:
+        ld_exe = str(out.read()).strip()
+    finally:
+        out.close()
     if gcc_exe:
         out = os.popen(gcc_exe + ' -dumpversion','r')
         out_string = out.read()
@@ -454,7 +461,6 @@ def get_versions():
             gcc_version = None
     else:
         gcc_version = None
-    ld_exe = find_executable('ld')
     if ld_exe:
         out = os.popen(ld_exe + ' -v','r')
         out_string = out.read()
@@ -466,7 +472,7 @@ def get_versions():
             ld_version = None
     else:
         ld_version = None
-    dllwrap_exe = find_executable('dllwrap')
+    dllwrap_exe = os.environ.get('DLLWRAP') or find_executable('dllwrap')
     if dllwrap_exe:
         out = os.popen(dllwrap_exe + ' --version','r')
         out_string = out.read()

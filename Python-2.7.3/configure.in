@@ -522,6 +522,27 @@ then
 fi
 AC_MSG_RESULT($MACHDEP)
 
+# Windows uses ; to separate paths, everything else uses :
+AC_MSG_CHECKING(DELIM)
+DELIM=:
+if test "$MACHDEP" = "win"
+then
+	DELIM=\;
+fi
+AC_MSG_RESULT([$DELIM])
+AC_SUBST(DELIM)
+
+# MSYS make uses a 'virtual' VPATH, but getpath.c uses
+# GetModuleFileNameW (replacing \ with /). This allows the user to
+# define the 'actual 'real' value. Note, it should contain / not \,
+# which is what is returned by "pwd -W".
+AC_ARG_VAR(MSYSVPATH,
+           For MSYS, allows specifying the real VPATH. Use / not \)
+if test -z "$MSYSVPATH"; then
+    MSYSVPATH=$srcdir
+fi
+AC_SUBST(MSYSVPATH)
+
 AC_MSG_CHECKING([for init system calls])
 AC_SUBST(INITSYS)
 case $host in
@@ -2965,7 +2986,7 @@ AC_SUBST(MACHDEP_OBJS)
 AC_MSG_CHECKING(MACHDEP_OBJS)
 case $host in
   *-*-mingw*)
-    extra_machdep_objs="PC/dl_nt.o PC/getpathp.o PC/import_nt.o"
+    extra_machdep_objs="PC/dl_nt.o Modules/getpath.o PC/import_nt.o"
     ;;
 esac
 if test -z "$MACHDEP_OBJS"
@@ -4170,6 +4191,28 @@ fi
 # check for endianness
 AC_C_BIGENDIAN
 
+# REPARSE_DATA_BUFFER is in winnt.h on mingw32 and (unusably) ddk/ntifs.h on mingw64.
+case $host in
+  *-*-mingw*)
+AC_CACHE_CHECK([if struct REPARSE_DATA_BUFFER is in winnt.h],
+[ac_cv_struct_reparse_data_buffer_in_winnt_h],
+  [AC_COMPILE_IFELSE(
+    [AC_LANG_PROGRAM(
+      [#include <windows.h>
+       #include <winnt.h>],
+      [REPARSE_DATA_BUFFER rdb],
+    )],
+    [ac_cv_struct_reparse_data_buffer_in_winnt_h=yes],
+    [ac_cv_struct_reparse_data_buffer_in_winnt_h=no]
+  )
+])
+if test "x${ac_cv_struct_reparse_data_buffer_in_winnt_h}" = xyes; then
+  AC_DEFINE([REPARSE_DATA_BUFFER_IN_WINNT], [], [REPARSE_DATA_BUFFER in winnt.h])
+  AC_SUBST(REPARSE_DATA_BUFFER_IN_WINNT)
+fi
+  ;;
+esac
+
 # Check whether right shifting a negative integer extends the sign bit
 # or fills with zeros (like the Cray J90, according to Tim Peters).
 AC_MSG_CHECKING(whether right shift extends the sign bit)
@@ -4706,7 +4749,8 @@ case $host in
     # FIXME: why windows builds don't use PC/frozen_dllmain.o ?
     PYTHON_OBJS_FROZENMAIN=""
     # default sys.path calculations for windows platforms
-    MODULE_GETPATH=PC/getpathp.o
+    # MODULE_GETPATH=PC/getpathp.o
+    MODULE_GETPATH=Modules/getpath.o
     ;;
 esac
 

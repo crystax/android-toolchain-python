@@ -27,6 +27,7 @@ MODLIBS=        _MODLIBS_
 VERSION=	@VERSION@
 srcdir=		@srcdir@
 VPATH=		@srcdir@
+MSYSVPATH=	@MSYSVPATH@
 
 CC=		@CC@
 CXX=		@CXX@
@@ -78,7 +79,8 @@ CFLAGSFORSHARED=@CFLAGSFORSHARED@
 # C flags used for building the interpreter object files
 PY_CFLAGS=	$(CFLAGS) $(CPPFLAGS) $(CFLAGSFORSHARED) -DPy_BUILD_CORE
 
-
+# ; on Windows otherwise :
+DELIM=		@DELIM@
 # Machine-dependent subdirectories
 MACHDEP=	@MACHDEP@
 
@@ -541,7 +543,7 @@ Modules/getpath.o: $(srcdir)/Modules/getpath.c Makefile
 		-DPREFIX='"$(prefix)"' \
 		-DEXEC_PREFIX='"$(exec_prefix)"' \
 		-DVERSION='"$(VERSION)"' \
-		-DVPATH='"$(VPATH)"' \
+		-DVPATH='"$(MSYSVPATH)"' \
 		-o $@ $(srcdir)/Modules/getpath.c
 
 # default sys.path calculations for windows platforms
@@ -838,6 +840,7 @@ altbininstall:	$(BUILDPYTHON)
 	if test -f $(LDLIBRARY); then \
 		if test -n "$(DLLLIBRARY)" ; then \
 			$(INSTALL_SHARED) $(DLLLIBRARY) $(DESTDIR)$(BINDIR); \
+			mkdir -p $(DESTDIR)$(LIBPL); $(INSTALL_SHARED) $(LDLIBRARY)  $(DESTDIR)$(LIBPL); \
 		else \
 			$(INSTALL_SHARED) $(LDLIBRARY) $(DESTDIR)$(LIBDIR)/$(INSTSONAME); \
 			if test $(LDLIBRARY) != $(INSTSONAME); then \
@@ -982,7 +985,7 @@ $(srcdir)/Lib/$(PLATDIR):
 	export PYTHONPATH; PYTHONPATH="`pwd`/Lib"; \
 	export DYLD_FRAMEWORK_PATH; DYLD_FRAMEWORK_PATH="`pwd`"; \
 	export EXE; EXE="$(BUILDEXE)"; \
-	cd $(srcdir)/Lib/$(PLATDIR); $(RUNSHARED) ./regen
+	cd $(srcdir)/Lib/$(PLATDIR); $(RUNSHARED) ./regen $(CC)
 
 python-config: $(srcdir)/Misc/python-config.in
 	# Substitution happens here, as the completely-expanded BINDIR

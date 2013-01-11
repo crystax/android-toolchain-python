@@ -923,7 +923,8 @@ class PyBuildExt(build_ext):
                 for p in ['msvcrtmodule.c']]) )
 
             exts.append( Extension('_msi', [os.path.join(pc_srcdir, p)
-                for p in ['_msi.c']]) )
+                for p in ['_msi.c']],
+                libraries=['msi','cabinet','rpcrt4']) ) # To link with lib(msi|cabinet|rpcrt4).a
 
             exts.append( Extension('_subprocess', [os.path.join(pc_srcdir, p)
                 for p in ['_subprocess.c']]) )

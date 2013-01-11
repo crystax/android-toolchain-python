@@ -72,19 +72,21 @@ def get_python_inc(plat_specific=0, prefix=None):
     if prefix is None:
         prefix = plat_specific and EXEC_PREFIX or PREFIX
 
-    if os.name == "posix":
+    # GCC(mingw): os.name is "nt" but build system is posix
+    if os.name == "posix" or sys.version.find('GCC') >= 0:
         if python_build:
-            buildir = os.path.dirname(sys.executable)
+            # NOTE: sysconfig.py-20091210
+            # Assume the executable is in the build directory.  The
+            # pyconfig.h file should be in the same directory.  Since
+            # the build directory may not be the source directory, we
+            # must use "srcdir" from the makefile to find the "Include"
+            # directory.
+            base = os.path.dirname(os.path.abspath(sys.executable))
             if plat_specific:
-                # python.h is located in the buildir
-                inc_dir = buildir
+                return base
             else:
-                # the source dir is relative to the buildir
-                srcdir = os.path.abspath(os.path.join(buildir,
-                                         get_config_var('srcdir')))
-                # Include is located in the srcdir
-                inc_dir = os.path.join(srcdir, "Include")
-            return inc_dir
+                incdir = os.path.join(get_config_var('srcdir'), 'Include')
+                return os.path.normpath(incdir)
         return os.path.join(prefix, "include", "python" + get_python_version())
     elif os.name == "nt":
         return os.path.join(prefix, "include")
@@ -146,14 +148,25 @@ _USE_CLANG = None
 def customize_compiler(compiler):
     """Do any platform-specific customization of a CCompiler instance.
 
-    Mainly needed on Unix, so we can plug in the information that
-    varies across Unices and is stored in Python's Makefile.
-    """
+     Mainly needed on Unix, so we can plug in the information that
+     varies across Unices and is stored in Python's Makefile.
+
+     NOTE (known limitation of python build/install system):
+     In cross-build environment make macros like CC and LDSHARED
+     contain cross-compiler/linker instead of host compiler/linker.
+     """
+
+    posix_build = None
     if compiler.compiler_type == "unix":
+       posix_build = True
+    elif compiler.compiler_type == "mingw32":
+        # GCC(mingw): if build system is posix
+        if sys.version.find('GCC') >= 0:
+            posix_build = True
+    if posix_build == True:
         (cc, cxx, opt, cflags, ccshared, ldshared, so_ext, ar, ar_flags) = \
-            get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
-                            'CCSHARED', 'LDSHARED', 'SO', 'AR',
-                            'ARFLAGS')
+             get_config_vars('CC', 'CXX', 'OPT', 'CFLAGS',
+                             'CCSHARED', 'LDSHARED', 'SO', 'AR', 'ARFLAGS')
 
         newcc = None
         if 'CC' in os.environ:
@@ -227,7 +240,8 @@ def customize_compiler(compiler):
 def get_config_h_filename():
     """Return full pathname of installed pyconfig.h file."""
     if python_build:
-        if os.name == "nt":
+        # GCC(mingw): os.name is "nt" but build system is posix
+        if os.name == "nt" and sys.version.find('GCC') < 0:
             inc_dir = os.path.join(project_base, "PC")
         else:
             inc_dir = project_base
@@ -460,6 +474,11 @@ def _init_posix():
 
 def _init_nt():
     """Initialize the module as appropriate for NT"""
+    if sys.version.find('GCC') >= 0:
+        # GCC(mingw) use posix build system
+        # FIXME: may be modification has to be in get_config_vars ?
+        _init_posix()
+        return
     g = {}
     # set basic install directories
     g['LIBDEST'] = get_python_lib(plat_specific=0, standard_lib=1)

@@ -916,6 +916,8 @@ def get_default_compiler(osname=None, platform=None):
         osname = os.name
     if platform is None:
         platform = sys.platform
+    if osname == "nt" and sys.version.find('GCC') >= 0:
+        return 'mingw32'
     for pattern, compiler in _default_compilers:
         if re.match(pattern, platform) is not None or \
            re.match(pattern, osname) is not None:

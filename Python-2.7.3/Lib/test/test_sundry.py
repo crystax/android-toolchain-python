@@ -27,7 +27,11 @@ class TestUntestedModules(unittest.TestCase):
 
             import distutils.command.bdist_dumb
             if sys.platform.startswith('win'):
-                import distutils.command.bdist_msi
+                try:
+                    import distutils.command.bdist_msi # if msi module is not build
+                except ImportError:
+                    if test_support.verbose:
+                        print "skipping bdist_msi"
             import distutils.command.bdist
             import distutils.command.bdist_rpm
             import distutils.command.bdist_wininst

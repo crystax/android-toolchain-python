@@ -112,9 +112,10 @@ PYTHONPATH=$(COREPYTHONPATH)
 # This only contains the minimal set of modules required to run the 
 # setup.py script in the root of the Python source tree.
 
-posix posixmodule.c		# posix (UNIX) system calls
 errno errnomodule.c		# posix (UNIX) errno values
-pwd pwdmodule.c			# this is needed to find out the user's home dir
+#FIXME: setup.py detect this module along with grp and spwd.
+#FIXME: what about to comment ?
+#pwd pwdmodule.c			# this is needed to find out the user's home dir
 				# if $HOME is not set
 _sre _sre.c			# Fredrik Lundh's new regular expressions
 _codecs _codecsmodule.c		# access to the builtin codecs and codec registry

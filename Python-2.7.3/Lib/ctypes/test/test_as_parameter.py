@@ -1,6 +1,7 @@
 import unittest
 from ctypes import *
 import _ctypes_test
+import sys
 
 dll = CDLL(_ctypes_test.__file__)
 
@@ -171,6 +172,10 @@ class BasicWrapTestCase(unittest.TestCase):
         s2h = dll.ret_2h_func(self.wrap(inp))
         self.assertEqual((s2h.x, s2h.y), (99*2, 88*3))
 
+    # This is known cdecl incompatibility between GCC
+    # and MSVC. It is addressed in GCC issue #36834.
+    # Python libffi detect it and complain.
+    @unittest.skipIf(sys.platform == "win32" and sys.version.find("GCC") >= 0, 'XFAIL GCC(mingw)')
     def test_struct_return_8H(self):
         class S8I(Structure):
             _fields_ = [("a", c_int),

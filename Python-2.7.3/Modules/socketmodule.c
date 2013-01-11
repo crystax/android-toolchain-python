@@ -91,6 +91,15 @@ Local naming conventions:
 #endif
 
 #include "Python.h"
+#ifndef HAVE_GETPEERNAME
+/* FIXME: see comments in configure.in. Also PC/pyconfig.h define it.
+ * Since only this module use getpeername why don't remove declaration
+ * from PC/pyconfig.h and define here if is defined MS_WIN32 ?
+ */
+#ifdef __MINGW32__
+#  define HAVE_GETPEERNAME
+#endif
+#endif /* ndef HAVE_GETPEERNAME */
 #include "structmember.h"
 
 #undef MAX
@@ -312,6 +321,35 @@ int h_errno; /* not used */
   /* Do not include addrinfo.h for MSVC7 or greater. 'addrinfo' and
    * EAI_* constants are defined in (the already included) ws2tcpip.h.
    */
+#elif defined(__MINGW32__)
+/* FIXME: getaddrinfo(HAVE_GETADDRINFO) depend from WINVER
+   TODO: resolve later(see comments in pyport.h) */
+#if 0
+/* To use getaddrinfo/getnameinfo from runtime for version before 0x0501
+   we has to define those functions (see below).
+   In all cases mingw linker succeed to link binaries.
+   If you enable this code the load of module will fail on w2k
+   with message like this one:
+   "The specified procedure could not be found" */
+#  if (_WIN32_WINNT < 0x0501)
+void WSAAPI freeaddrinfo (struct addrinfo*);
+int WSAAPI getaddrinfo (const char*,const char*,const struct addrinfo*,
+		        struct addrinfo**);
+int WSAAPI getnameinfo(const struct sockaddr*,socklen_t,char*,DWORD,
+		       char*,DWORD,int);
+#  endif
+#  define HAVE_GETADDRINFO
+#  define HAVE_GETNAMEINFO
+#else
+#  if (_WIN32_WINNT < 0x0501)
+   /* Internal implemetation that has to work on w2k and latest. */
+#    define EAI_ADDRFAMILY
+#    include "addrinfo.h"
+#  else
+#    define HAVE_GETADDRINFO
+#    define HAVE_GETNAMEINFO
+#  endif
+#endif
 #else
 #  include "addrinfo.h"
 #endif
@@ -349,6 +387,16 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
 #if !defined(HAVE_GETADDRINFO)
 /* avoid clashes with the C library definition of the symbol. */
 #define getaddrinfo fake_getaddrinfo
+#ifdef __MINGW32__
+#ifdef gai_strerror
+/* NOTE: Mingw w32api always define gai_strerror to gai_strerror{A|W}
+   but getaddrinfo is defined if _WIN32_WINNT >= 0x0501.
+   MSDN say that gai_strerror() exist for w95 and later and
+   getaddrinfo()/getnameinfo() for wxp and later.
+   Since we use fake function to suppress warnign we has to undef. */
+#  undef gai_strerror
+#endif
+#endif /*def __MINGW32__*/
 #define gai_strerror fake_gai_strerror
 #define freeaddrinfo fake_freeaddrinfo
 #include "getaddrinfo.c"
@@ -2912,7 +2960,31 @@ PyDoc_STRVAR(shutdown_doc,
 Shut down the reading side of the socket (flag == SHUT_RD), the writing side\n\
 of the socket (flag == SHUT_WR), or both ends (flag == SHUT_RDWR).");
 
+#ifndef SIO_RCVALL
+#ifdef __MINGW32__
+/* MSDN: SIO_RCVALL defined on w2k and later */
+/* note "Separate SDKs" required for w2k    */
+/* 0x98000001 = _WSAIOW(IOC_VENDOR,1)       */
+#  define SIO_RCVALL	0x98000001
+#  define RCVALL_OFF	0
+#  define RCVALL_ON	1
+   /* NOTE: MSDN - this feature is not implemented */
+#  define RCVALL_SOCKETLEVELONLY	2
+
+/* 0x98000004 = _WSAIOW(IOC_VENDOR,4) */
+#  define SIO_KEEPALIVE_VALS	0x98000004
+struct tcp_keepalive {
+    u_long onoff;
+    u_long keepalivetime;
+    u_long keepaliveinterval;
+};
+#endif /* def __MINGW32__ */
+#endif /* ndef SIO_RCVALL */
+
 #if defined(MS_WINDOWS) && defined(SIO_RCVALL)
+/* If isn't defined test_socket.py fail with:
+AttributeError: type object '_socket.socket' has no attribute 'ioctl'
+*/
 static PyObject*
 sock_ioctl(PySocketSockObject *s, PyObject *arg)
 {

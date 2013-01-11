@@ -11,6 +11,7 @@ class BDistMSITestCase(support.TempdirManager,
                        support.LoggingSilencer,
                        unittest.TestCase):
 
+    @unittest.skip("Require bdist_msi")
     def test_minimal(self):
         # minimal test XXX need more tests
         from distutils.command.bdist_msi import bdist_msi

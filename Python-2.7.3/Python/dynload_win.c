@@ -11,9 +11,11 @@
 #include "importdl.h"
 #include <windows.h>
 
-// "activation context" magic - see dl_nt.c...
+#ifdef Py_ENABLE_SHARED
+/* "activation context" magic - see dl_nt.c... */
 extern ULONG_PTR _Py_ActivateActCtx();
 void _Py_DeactivateActCtx(ULONG_PTR cookie);
+#endif
 
 const struct filedescr _PyImport_DynLoadFiletab[] = {
 #ifdef _DEBUG
@@ -25,6 +27,12 @@ const struct filedescr _PyImport_DynLoadFiletab[] = {
 };
 
 
+#if defined(__MINGW32__)
+/* NOTE strcasecmp fail to compile with GCC for windows hosts
+ * with  error: conflicting types for 'strcasecmp'
+ */
+#  define strcasecmp fake_strcasecmp
+#endif
 /* Case insensitive string compare, to avoid any dependencies on particular
    C RTL implementations */
 
@@ -190,11 +198,15 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
                             sizeof(pathbuf),
                             pathbuf,
                             &dummy)) {
+#ifdef Py_ENABLE_SHARED
             ULONG_PTR cookie = _Py_ActivateActCtx();
+#endif
             /* XXX This call doesn't exist in Windows CE */
             hDLL = LoadLibraryEx(pathname, NULL,
                                  LOAD_WITH_ALTERED_SEARCH_PATH);
+#ifdef Py_ENABLE_SHARED
             _Py_DeactivateActCtx(cookie);
+#endif
         }
 
         /* restore old error mode settings */

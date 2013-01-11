@@ -128,6 +128,16 @@ corresponding Unix manual entries for more information on calls.");
 #define HAVE_CWAIT      1
 #define HAVE_FSYNC      1
 #define fsync _commit
+#elif defined(__MINGW32__)	/* GCC (mingw special) compiler */
+/*#define HAVE_GETCWD	1 - detected by configure*/
+#define HAVE_SPAWNV	1
+/*#define HAVE_EXECV	1 - detected by configure*/
+#define HAVE_PIPE	1
+#define HAVE_POPEN	1
+#define HAVE_SYSTEM	1
+#define HAVE_CWAIT	1
+#define HAVE_FSYNC	1
+#define fsync _commit
 #else
 #if defined(PYOS_OS2) && defined(PYCC_GCC) || defined(__VMS)
 /* Everything needed is defined in PC/os2emx/pyconfig.h or vms/pyconfig.h */
@@ -256,7 +266,7 @@ extern int lstat(const char *, struct stat *);
 #endif
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__MINGW32__)
 #ifdef HAVE_DIRECT_H
 #include <direct.h>
 #endif
@@ -272,7 +282,7 @@ extern int lstat(const char *, struct stat *);
 #include <shellapi.h>   /* for ShellExecute() */
 #define popen   _popen
 #define pclose  _pclose
-#endif /* _MSC_VER */
+#endif /* _MSC_VER || __MINGW32__ */
 
 #if defined(PYCC_VACPP) && defined(PYOS_OS2)
 #include <io.h>
@@ -447,7 +457,7 @@ _PyVerify_fd_dup2(int fd1, int fd2)
 */
 #include <crt_externs.h>
 static char **environ;
-#elif !defined(_MSC_VER) && ( !defined(__WATCOMC__) || defined(__QNX__) )
+#elif !defined(_MSC_VER) && !defined(__MINGW32__) && ( !defined(__WATCOMC__) || defined(__QNX__) )
 extern char **environ;
 #endif /* !_MSC_VER */
 
@@ -1382,6 +1392,13 @@ _pystat_fromstructstat(STRUCT_STAT *st)
 }
 
 #ifdef MS_WINDOWS
+#ifdef __MINGW32__
+/* NOTE: All sample MSDN wincrypt programs include this header.
+ * It is required if we use mingw w32api.
+ * Why MSVC builds don't include it ?
+ */
+#  include <wincrypt.h>
+#endif
 
 /* IsUNCRoot -- test whether the supplied path is of the form \\SERVER\SHARE\,
    where / can be used in place of \ and the trailing slash is optional.
@@ -9251,7 +9268,7 @@ all_ins(PyObject *d)
 }
 
 
-#if (defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__)) && !defined(__QNX__)
+#if (defined(_MSC_VER) || defined (__MINGW32__) || defined(__WATCOMC__) || defined(__BORLANDC__)) && !defined(__QNX__)
 #define INITFUNC initnt
 #define MODNAME "nt"
 

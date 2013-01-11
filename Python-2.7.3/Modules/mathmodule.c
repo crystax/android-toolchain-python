@@ -60,6 +60,30 @@ raised for division by zero and mod by zero.
 extern double copysign(double, double);
 #endif
 
+#if defined(__MINGW32__)
+#  define USE_MINGWEX_MATH
+#endif
+
+#ifdef USE_MINGWEX_MATH
+/* Since ldexp() is broken on many MSVCRT implementations and mingwex
+ * library provide a long double version we will use it as work-around.
+ * As example broken ldexp return for ldexp(1., INT_MAX) 0(zero) instead inf.
+ * With this work-around math test testLdexp pass.
+ */
+static double fake_ldexp (double x, int expn) { return ldexpl (x, expn); }
+#define ldexp	fake_ldexp
+
+/* Since pow() is broken on many MSVCRT implementations and library
+ * mingwex provide a long double version we will use it as work-around.
+ * As example broken pow return for pow(132.97585637020967, 126.95117632943295)
+ * 4.1252919849060512e+269 instead 4.1252919849057403e+269.
+ * With this work-around math test test_mtestfile pass for gamma.
+ */
+static double fake_pow (double x, double y) { return powl (x, y); }
+#define pow	fake_pow
+
+#endif /*def USE_MINGWEX_MATH*/
+
 /*
    sin(pi*x), giving accurate results for all finite x (especially x
    integral or close to an integer).  This is here for use in the

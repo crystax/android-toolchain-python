@@ -232,6 +232,9 @@ str_isnumber(const char *p)
     return YES;
 }
 
+#ifndef EAI_BADHINTS
+#  define EAI_BADHINTS EAI_BADFLAGS
+#endif
 int
 getaddrinfo(const char*hostname, const char*servname,
             const struct addrinfo *hints, struct addrinfo **res)

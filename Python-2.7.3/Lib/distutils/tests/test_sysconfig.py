@@ -43,9 +43,15 @@ class SysconfigTestCase(support.EnvironGuard,
         # This is not much of a test.  We make sure Python.h exists
         # in the directory returned by get_python_inc() but we don't know
         # it is the correct file.
+        #Broken after issue 7712(r78136) : add a temp_cwd context manager to test_support ...
+        #NOTE: Its fail on platforms without root directory support(like windows)
+        #where temp and current working directories may stay on different drivers.
+        old_wd = os.getcwd()
+        os.chdir(SAVEDCWD)
         self.assertTrue(os.path.isdir(inc_dir), inc_dir)
         python_h = os.path.join(inc_dir, "Python.h")
         self.assertTrue(os.path.isfile(python_h), python_h)
+        os.chdir(old_wd)
 
     def test_parse_makefile_base(self):
         self.makefile = test.test_support.TESTFN

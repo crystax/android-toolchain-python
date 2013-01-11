@@ -292,6 +292,8 @@ class UnixCCompiler(CCompiler):
             return ["+s", "-L" + dir]
         elif sys.platform[:7] == "irix646" or sys.platform[:6] == "osf1V5":
             return ["-rpath", dir]
+        elif sys.platform[:3] == "aix":
+            return "-blibpath:" + dir
         elif self._is_gcc(compiler):
             return "-Wl,-R" + dir
         else:

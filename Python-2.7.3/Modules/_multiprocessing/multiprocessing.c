@@ -332,6 +332,12 @@ init_multiprocessing(void)
         Py_DECREF(temp); Py_DECREF(value); return; }              \
     Py_DECREF(value)
 
+#ifndef MS_WINDOWS
+/* GCC(mingw) 4.4+ require and use posix threads(pthreads-w32)
+ * Also system may contain installed pthreads-w32.
+ * As multiprocessing is based on windows methods we must
+ * comment all those flags
+ */
 #if defined(HAVE_SEM_OPEN) && !defined(POSIX_SEMAPHORES_NOT_ENABLED)
     ADD_FLAG(HAVE_SEM_OPEN);
 #endif
@@ -345,8 +351,10 @@ init_multiprocessing(void)
     ADD_FLAG(HAVE_BROKEN_SEM_GETVALUE);
 #endif
 #ifdef HAVE_BROKEN_SEM_UNLINK
+/* FIXME: why use this? Note before was for cygwin and darwin ? */
     ADD_FLAG(HAVE_BROKEN_SEM_UNLINK);
 #endif
+#endif /*ndef MS_WINDOWS*/
     if (PyModule_AddObject(module, "flags", temp) < 0)
         return;
 }

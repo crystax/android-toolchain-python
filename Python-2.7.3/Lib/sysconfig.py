@@ -128,8 +128,13 @@ _PYTHON_BUILD = is_python_build()
 
 if _PYTHON_BUILD:
     for scheme in ('posix_prefix', 'posix_home'):
-        _INSTALL_SCHEMES[scheme]['include'] = '{projectbase}/Include'
-        _INSTALL_SCHEMES[scheme]['platinclude'] = '{srcdir}'
+        _INSTALL_SCHEMES[scheme]['include'] = '{srcdir}/Include'
+        _INSTALL_SCHEMES[scheme]['platinclude'] = '{projectbase}'
+
+    # GCC(mingw) use posix build system
+    if os.name == "nt" and sys.version.find('GCC') >= 0:
+        _INSTALL_SCHEMES['nt']['include'] = '{srcdir}/Include'
+        _INSTALL_SCHEMES['nt']['platinclude'] = '{projectbase}'
 
 def _subst_vars(s, local_vars):
     try:
@@ -354,7 +359,8 @@ def parse_config_h(fp, vars=None):
 def get_config_h_filename():
     """Returns the path of pyconfig.h."""
     if _PYTHON_BUILD:
-        if os.name == "nt":
+        # GCC(mingw): os.name is "nt" but build system is posix
+        if os.name == "nt" and sys.version.find('GCC') < 0:
             inc_dir = os.path.join(_PROJECT_BASE, "PC")
         else:
             inc_dir = _PROJECT_BASE
@@ -416,9 +422,19 @@ def get_config_vars(*args):
         _CONFIG_VARS['platbase'] = _EXEC_PREFIX
         _CONFIG_VARS['projectbase'] = _PROJECT_BASE
 
-        if os.name in ('nt', 'os2'):
-            _init_non_posix(_CONFIG_VARS)
+        # GCC(mingw) use posix build system
+        posix_build = None
         if os.name == 'posix':
+            posix_build = True
+        else:
+            if os.name in ('nt', 'os2'):
+                if sys.version.find('GCC') >= 0:
+                    posix_build = True
+                else:
+                    posix_build = False
+        if posix_build == False:
+            _init_non_posix(_CONFIG_VARS)
+        if posix_build == True:
             _init_posix(_CONFIG_VARS)
 
         # Setting 'userbase' is done below the call to the
@@ -433,7 +449,7 @@ def get_config_vars(*args):
         # Normally it is relative to the build directory.  However, during
         # testing, for example, we might be running a non-installed python
         # from a different directory.
-        if _PYTHON_BUILD and os.name == "posix":
+        if _PYTHON_BUILD and posix_build == True:
             base = _PROJECT_BASE
             try:
                 cwd = os.getcwd()

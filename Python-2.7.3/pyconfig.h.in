@@ -969,6 +969,9 @@
 /* Define if you want to have a Unicode type. */
 #undef Py_USING_UNICODE
 
+/* REPARSE_DATA_BUFFER in winnt.h */
+#undef REPARSE_DATA_BUFFER_IN_WINNT
+
 /* assume C89 semantics that RETSIGTYPE is always void */
 #undef RETSIGTYPE
 

@@ -91,6 +91,11 @@
   set_form_sub set_form_term set_form_userptr set_form_win
   set_max_field set_new_page unpost_form
 
+#ifdef __MINGW32__
+#ifndef _ISPAD
+#define _ISPAD 0x10
+#endif
+#endif
 
 */
 

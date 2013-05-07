@@ -325,7 +325,11 @@ class StatAttributeTests(unittest.TestCase):
 
             def test_large_time(self):
                 t1 = 5000000000 # some day in 2128
-                os.utime(self.fname, (t1, t1))
+                try:
+                    #Note fail if time_t is 32 bit
+                    os.utime(self.fname, (t1, t1))
+                except OverflowError:
+                    self.skipTest("requires at least 64-bit time_t")
                 self.assertEqual(os.stat(self.fname).st_mtime, t1)
 
         def test_1686475(self):

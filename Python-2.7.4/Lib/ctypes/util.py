@@ -7,6 +7,11 @@ import sys, os
 if os.name == "nt":
 
     def _get_build_version():
+        #***********************************************************
+        # NOTE: As example for GCC(mingw) build sys.version return:
+        # '2.7a0 (trunk:<REVISION>M, <DATE>, <TIME>) \n[GCC 3.4.5 (mingw special)]'
+        # '2.7a0 (trunk:<REVISION>M, <DATE>, <TIME>) \n[GCC 4.4.0]'
+        #***********************************************************
         """Return the version of MSVC that was used to build Python.
 
         For Python 2.3 and up, the version number is included in
@@ -30,6 +35,15 @@ if os.name == "nt":
         return None
 
     def find_msvcrt():
+        #************************************************************
+        # FIXME: For GCC(mingw) runtime don't depend from compiler
+        # version ;). We may use -D__MSVCRT_VERSION__ to detect which
+        # verion is requested by user, but the name of the library
+        # to be default.
+        # As example WXP is with version 7.0 of msvcrt.dll.
+        # Anyway since _get_build_version return 6 in most(standard)
+        # cases this method will return msvcrt{d}. May be not so bad.
+        #************************************************************
         """Return the name of the VC runtime dll"""
         version = _get_build_version()
         if version is None:

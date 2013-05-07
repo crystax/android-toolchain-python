@@ -60,6 +60,11 @@ class BuildExtTestCase(support.TempdirManager,
             sys.stdout = StringIO()
         try:
             cmd.ensure_finalized()
+            #Broken after issue 7712(r78136) : add a temp_cwd context manager to test_support ...
+            #Without current working dir: "...cannot find -lpython27"
+            #NOTE: [py3k svn r85559] First (uncontroversial) part of issue 9807, barry.warsaw, 2010-10-16 :
+            #  new _fixup_command is bogus, so we will use own work-around
+            cmd.library_dirs.insert(0, test_support.SAVEDCWD)
             cmd.run()
         finally:
             sys.stdout = old_stdout
@@ -281,6 +286,12 @@ class BuildExtTestCase(support.TempdirManager,
         # returns wrong result with --inplace
         other_tmp_dir = os.path.realpath(self.mkdtemp())
         old_wd = os.getcwd()
+        #Without current working dir: "...cannot find -lpython27"
+        #NOTE: After issue #7712(r78136) test cannot use old_wd !
+        #cmd.library_dirs.insert(0, old_wd)
+        #NOTE: [py3k svn r85559] First (uncontroversial) part of issue 9807, barry.warsaw, 2010-10-16 :
+        #  new _fixup_command is bogus, so we will use own work-around
+        cmd.library_dirs.insert(0, test_support.SAVEDCWD)
         os.chdir(other_tmp_dir)
         try:
             cmd.inplace = 1

@@ -318,6 +318,9 @@ then
 	*-*-cygwin*)
 		ac_sys_system=Cygwin
 		;;
+	*-*-mingw*)
+		ac_sys_system=MinGW
+		;;
 	*)
 		# for now, limit cross builds to known configurations
 		MACHDEP="unknown"
@@ -345,6 +348,7 @@ then
 	darwin*) MACHDEP="darwin";;
 	atheos*) MACHDEP="atheos";;
         irix646) MACHDEP="irix6";;
+	mingw*) MACHDEP="win32";;
 	'')	MACHDEP="unknown";;
     esac
 fi
@@ -361,7 +365,7 @@ if test "$cross_compiling" = yes; then
 			_host_cpu=$host_cpu
 		esac
 		;;
-	*-*-cygwin*)
+	*-*-cygwin*|*-*-mingw*)
 		_host_cpu=
 		;;
 	*)
@@ -488,6 +492,16 @@ then
         MACHDEP=`echo "${MACHDEP}${SGI_ABI}" | sed 's/ *//g'`
 fi
 AC_MSG_RESULT($MACHDEP)
+
+AC_MSG_CHECKING([for init system calls])
+AC_SUBST(INITSYS)
+case $host in
+  # FIXME: May configure lack detection for os2 host system ?
+  #?#*-*-os2*)	INITSYS=os2;;
+  *-*-mingw*)	INITSYS=nt;;
+  *)		INITSYS=posix;;
+esac
+AC_MSG_RESULT([$INITSYS])
 
 # And add extra plat-mac for darwin
 AC_SUBST(EXTRAPLATDIR)
@@ -825,6 +839,10 @@ then
   *)
     enable_shared="no";;
   esac
+  case $host in
+  *-*-mingw*)
+    enable_shared="yes";;
+  esac
 fi
 AC_MSG_RESULT($enable_shared)
 
@@ -926,12 +944,24 @@ if test $enable_shared = "yes"; then
 	;;
 
   esac
+  case $host in
+    *-*-mingw*)
+          LDLIBRARY='libpython$(VERSION).dll.a'
+          DLLLIBRARY='libpython$(VERSION).dll'
+          dnl setup.py add it for mingw host
+          dnl BLDLIBRARY='-L. -lpython$(VERSION)'
+          ;;
+  esac
 else # shared is disabled
   case $ac_sys_system in
     CYGWIN*)
           BLDLIBRARY='$(LIBRARY)'
           LDLIBRARY='libpython$(VERSION).dll.a'
           ;;
+  esac
+  case $host in
+    *-*-mingw*)
+          LDLIBRARY='libpython$(VERSION).a';;
   esac
 fi
 
@@ -1012,6 +1042,8 @@ if test -z "$LN" ; then
 	esac
 fi
 
+dnl TODO: to move --with-pydebug earlier in script and to group
+dnl debug related statements togeder (if posible)
 # Check for --with-pydebug
 AC_MSG_CHECKING(for --with-pydebug)
 AC_ARG_WITH(pydebug, 
@@ -1026,6 +1058,29 @@ then
 else AC_MSG_RESULT(no); Py_DEBUG='false'
 fi],
 [AC_MSG_RESULT(no)])
+# FIXME: We define BUILDEXEEXT and LDLIBRARY above but:
+#  For debug versions MSVC build prepend suffix by '_d'.
+#  If we support this convention we may modify distutils(TODO).
+#  To support different build directories is good "--with-pydebug"
+#  to be earlier in the script(why i wrote this?).
+if test "x$Py_DEBUG" = xtrue; then
+  case $host in
+    dnl TODO: This is good to be where we define LDLIBRARY
+    dnl but --with-pydebug is defined too late in the script.
+    # Since Makefile.pre.in may isn't suitable for now we will not
+    # change LDLIBRARY.
+    *-*-mingw*)
+      BUILDEXEEXT=_d$BUILDEXEEXT
+      if test x$enable_shared = xyes; then
+        #LDLIBRARY='libpython$(VERSION)_d.dll.a'
+        DLLLIBRARY='libpython$(VERSION)_d.dll'
+      else # shared is disabled
+        #LDLIBRARY='libpython$(VERSION)_d.dll.a';;
+        :
+      fi
+      ;;
+  esac
+fi
 
 # XXX Shouldn't the code above that fiddles with BASECFLAGS and OPT be
 # merged with this chunk of code?
@@ -1042,6 +1097,8 @@ fi],
 
 # tweak OPT based on compiler and platform, only if the user didn't set
 # it on the command line
+# NOTE: If user set OPT at this point script ignore all previously set
+# options (not important - BeOS is depricated for python 2.6+).
 AC_SUBST(OPT)
 if test "${OPT-unset}" = "unset"
 then
@@ -1253,8 +1310,15 @@ yes)
     ;;
 esac
 
+dnl NOTE: although Py_DEBUG is set earlier in the script we can't move
+dnl before "# tweak OPT based on compiler" - if user specify environment
+dnl variable OPT we will lost our settings!!!
+dnl FIXME: why script add debug definition to OPT instead to BASECFLAGS?
 if test "$Py_DEBUG" = 'true'; then
-  :
+  case $host in
+    dnl Same as in PC/pyconfig.h but order in opposite(Py_DEBUG=>-D_DEBUG).
+    *-*-mingw*) OPT="-D_DEBUG $OPT";;
+  esac
 else
   OPT="-DNDEBUG $OPT"
 fi
@@ -1457,6 +1521,20 @@ CC="$ac_save_cc"])
 AC_MSG_RESULT($ac_cv_pthread)
 fi
 
+if test "x$ac_cv_kpthread" = xno && \
+   test "x$ac_cv_kthread" = xno && \
+   test "x$ac_cv_pthread" = xno && \
+   test "x$ac_cv_pthread_is_default" = xno
+then
+	AC_MSG_CHECKING(for NT threads)
+	AC_CACHE_VAL(ac_cv_ntthread,
+	[AC_LINK_IFELSE([
+		AC_LANG_PROGRAM([], [_beginthread(0, 0, 0);])],
+	ac_cv_ntthread=yes,
+	ac_cv_ntthread=no)])
+	AC_MSG_RESULT([$ac_cv_ntthread])
+fi
+
 # If we have set a CC compiler flag for thread support then
 # check if it works for CXX, too.
 ac_cv_cxx_thread=no
@@ -1477,6 +1555,9 @@ elif test "$ac_cv_pthread" = "yes"
 then 
   CXX="$CXX -pthread"
   ac_cv_cxx_thread=yes
+elif test "x$ac_cv_ntthread" = xyes
+then
+  ac_cv_cxx_thread=always
 fi
 
 if test $ac_cv_cxx_thread = yes
@@ -1518,7 +1599,7 @@ sys/param.h sys/poll.h sys/select.h sys/socket.h sys/statvfs.h sys/stat.h \
 sys/termio.h sys/time.h \
 sys/times.h sys/types.h sys/un.h sys/utsname.h sys/wait.h pty.h libutil.h \
 sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
-bluetooth/bluetooth.h linux/tipc.h spawn.h util.h)
+bluetooth/bluetooth.h linux/tipc.h spawn.h util.h winsock2.h)
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
 
@@ -1747,19 +1828,20 @@ then CC="$CC -Kthread"
 elif test "$ac_cv_pthread" = "yes"
 then CC="$CC -pthread"
 fi
-AC_MSG_CHECKING(for pthread_t)
-have_pthread_t=no
-AC_COMPILE_IFELSE([
-  AC_LANG_PROGRAM([[#include <pthread.h>]], [[pthread_t x; x = *(pthread_t*)0;]])
-],[have_pthread_t=yes],[])
-AC_MSG_RESULT($have_pthread_t)
-if test "$have_pthread_t" = yes ; then
+dnl NOTE: avoid duplicate check for pthread_t(it is done in AC_CHECK_SIZEOF(pthread_t...) )
+dnl AC_MSG_CHECKING(for pthread_t)
+dnl have_pthread_t=no
+dnl AC_COMPILE_IFELSE([
+dnl   AC_LANG_PROGRAM([[#include <pthread.h>]], [[pthread_t x; x = *(pthread_t*)0;]])
+dnl ],[have_pthread_t=yes],[])
+dnl AC_MSG_RESULT($have_pthread_t)
+dnl if test "$have_pthread_t" = yes ; then
   AC_CHECK_SIZEOF(pthread_t, [], [
 #ifdef HAVE_PTHREAD_H
 #include <pthread.h>
 #endif
   ])
-fi
+dnl fi
 CC="$ac_save_cc"
 
 AC_MSG_CHECKING(for --enable-toolbox-glue)
@@ -1920,6 +2002,16 @@ then
 	CYGWIN*)   SO=.dll;;
 	*)	   SO=.so;;
 	esac
+	case $host in
+	*-*-mingw*)
+	#NOTE: see _PyImport_DynLoadFiletab in dynload_win.c
+	if test "x$Py_DEBUG" = xtrue; then
+		SO=_d.pyd
+	else
+		SO=.pyd
+	fi
+	;;
+	esac
 else
 	# this might also be a termcap variable, see #610332
         echo
@@ -2076,6 +2168,12 @@ then
 		LDCXXSHARED="g++ -shared";;
 	*)	LDSHARED="ld";;
 	esac
+	case $host in
+	*-*-mingw*)
+		LDSHARED='$(CC) -shared -Wl,--enable-auto-image-base'
+		LDCXXSHARED='$(CXX) -shared -Wl,--enable-auto-image-base'
+		;;
+	esac
 fi
 AC_MSG_RESULT($LDSHARED)
 LDCXXSHARED=${LDCXXSHARED-$LDSHARED}
@@ -2173,6 +2271,12 @@ then
 		# when running test_compile.py.
 		LINKFORSHARED='-Wl,-E -N 2048K';;
 	esac
+	case $host in
+	*-*-mingw*)
+		if test x$enable_shared = xyes; then
+			LINKFORSHARED='-Wl,--out-implib=$(LDLIBRARY)'
+		fi;;
+	esac
 fi
 AC_MSG_RESULT($LINKFORSHARED)
 
@@ -2188,6 +2292,12 @@ then
 		CFLAGSFORSHARED='';;
 	*)
 		CFLAGSFORSHARED='$(CCSHARED)'
+	esac
+	case $host in
+	*-*-mingw*)
+		# TODO mingw may needs CCSHARED when building extension DLLs
+		# but not when building the interpreter DLL.
+		CFLAGSFORSHARED='';;
 	esac
 fi
 AC_MSG_RESULT($CFLAGSFORSHARED)
@@ -2221,9 +2331,18 @@ if test "$with_threads" = "yes" -o -z "$with_threads"; then
 fi
 
 # check if we need libintl for locale functions
+case $host in
+  *-*-mingw*)
+  dnl Native windows build don't use libintl (see _localemodule.c).
+  dnl Also we don't like setup.py to add "intl" library to the list
+  dnl when build _locale module.
+  ;;
+  *)
 AC_CHECK_LIB(intl, textdomain,
 	AC_DEFINE(WITH_LIBINTL, 1,
 	[Define to 1 if libintl is needed for locale functions.]))
+  ;;
+esac
 
 # checks for system dependent C++ extensions support
 case "$ac_sys_system" in
@@ -2405,6 +2524,13 @@ then
     AC_DEFINE(WITH_THREAD)
     posix_threads=yes
     THREADOBJ="Python/thread.o"
+elif test "x$ac_cv_ntthread" = xyes
+then
+    AC_DEFINE(WITH_THREAD)
+    posix_threads=no
+    THREADOBJ="Python/thread.o"
+    AC_DEFINE(NT_THREADS, 1,
+	[Define to 1 if you want to use native NT threads])
 else
     if test ! -z "$with_threads" -a -d "$with_threads"
     then LDFLAGS="$LDFLAGS -L$with_threads"
@@ -2570,6 +2696,18 @@ if test "$posix_threads" = "yes"; then
             ;;
         esac])
 fi
+
+
+AC_SUBST(BUILDIN_WIN32_MODULE)
+BUILDIN_WIN32_MODULE='#'
+case $host in
+  *-*-mingw*)
+    # On win32 host(mingw build MSYS environment) site.py fail to load
+    # if _functools is not build-in by reason of dependency:
+    #   setup->site->locale->functools&operator
+    BUILDIN_WIN32_MODULE=
+  ;;
+esac
 
 
 # Check for enable-ipv6
@@ -2851,6 +2989,14 @@ then
 	fi
 	;;
 	esac
+	case $host in
+	*-*-mingw*)
+	# FIXME: it is good to use portable "$OBJEXT" instead "o" but
+	# python build isn't yet ready to use it (see Makefile.pre.in)
+	#DYNLOADFILE="dynload_win.$OBJEXT"
+	DYNLOADFILE="dynload_win.o"
+	;;
+	esac
 fi
 AC_MSG_RESULT($DYNLOADFILE)
 if test "$DYNLOADFILE" != "dynload_stub.o"
@@ -2863,6 +3009,11 @@ fi
 
 AC_SUBST(MACHDEP_OBJS)
 AC_MSG_CHECKING(MACHDEP_OBJS)
+case $host in
+  *-*-mingw*)
+    extra_machdep_objs="PC/dl_nt.o PC/getpathp.o PC/import_nt.o"
+    ;;
+esac
 if test -z "$MACHDEP_OBJS"
 then
 	MACHDEP_OBJS=$extra_machdep_objs
@@ -2887,6 +3038,17 @@ AC_CHECK_FUNCS(alarm setitimer getitimer bind_textdomain_codeset chown \
  sigaction siginterrupt sigrelse strftime \
  sysconf tcgetpgrp tcsetpgrp tempnam timegm times tmpfile tmpnam tmpnam_r \
  truncate uname unsetenv utimes waitpid wait3 wait4 wcscoll _getpty)
+
+dnl NOTE: On windows platform some functions aren't C functions and require
+dnl additional non-standard decoration and may be libraries.
+dnl As example winsock2 functions, although are based on berkeley sockets
+dnl use stdcall convention. Also they require an additional library ws2_32.
+dnl One of those functions is "getpeername" (see list above)
+dnl and can't be detected by script. Now this impact mingw host platforms.
+dnl Since this function is used only by socketmodule, module include
+dnl necessary headers and is linked with requred libs (see setup.py)
+dnl windows exception will be handled in module code.
+dnl FIXME: If you don't like this, write appropriate check here.
 
 # For some functions, having a definition is not sufficient, since
 # we want to take their address.
@@ -3294,6 +3456,15 @@ else
   ac_cv_buggy_getaddrinfo=yes
 fi]))
 fi
+case $host in
+  *-*-mingw*)
+  #FIXME: mingw "w32api" define getaddinfo if WINVER >= 0x501, i.e. XP or greater.
+  #TODO: mingw require additional check.
+  #NOTE: above check is not correct for windows platforms.
+  #  ac_cv_buggy_getaddrinfo=no
+    :
+    ;;
+esac
 
 AC_MSG_RESULT($ac_cv_buggy_getaddrinfo)
 
@@ -3349,19 +3520,33 @@ AC_MSG_RESULT($was_it_defined)
 
 AC_MSG_CHECKING(for addrinfo)
 AC_CACHE_VAL(ac_cv_struct_addrinfo,
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <netdb.h>]], [[struct addrinfo a]])],
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifdef HAVE_WINSOCK2_H
+#  include <ws2tcpip.h>
+#else
+#  include <netdb.h>
+#endif]],
+    [[struct addrinfo a]])],
   [ac_cv_struct_addrinfo=yes],
   [ac_cv_struct_addrinfo=no]))
 AC_MSG_RESULT($ac_cv_struct_addrinfo)
 if test $ac_cv_struct_addrinfo = yes; then
-	AC_DEFINE(HAVE_ADDRINFO, 1, [struct addrinfo (netdb.h)])
+	AC_DEFINE(HAVE_ADDRINFO, 1, [struct addrinfo])
 fi
 
 AC_MSG_CHECKING(for sockaddr_storage)
 AC_CACHE_VAL(ac_cv_struct_sockaddr_storage,
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#		include <sys/types.h>
-#		include <sys/socket.h>]], [[struct sockaddr_storage s]])],
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#endif]],
+    [[struct sockaddr_storage s]])],
   [ac_cv_struct_sockaddr_storage=yes],
   [ac_cv_struct_sockaddr_storage=no]))
 AC_MSG_RESULT($ac_cv_struct_sockaddr_storage)
@@ -3555,10 +3740,15 @@ fi],
 
 # check for --with-libm=...
 AC_SUBST(LIBM)
+dnl obsolete style to set libraries for a system
 case $ac_sys_system in
 Darwin) ;;
 BeOS) ;;
 *) LIBM=-lm
+esac
+dnl new style to set libraries for host system
+case $host in
+  *-*-mingw*) LIBM=;;
 esac
 AC_MSG_CHECKING(for --with-libm=STRING)
 AC_ARG_WITH(libm,
@@ -3593,6 +3783,13 @@ fi],
 # **************************************************
 # * Check for various properties of floating point *
 # **************************************************
+case $host in
+  *-*-mingw*)
+    ac_cv_little_endian_double=yes
+    ac_cv_big_endian_double=no
+    ac_cv_mixed_endian_double=no
+  ;;
+esac
 
 AC_MSG_CHECKING(whether C doubles are little-endian IEEE 754 binary64)
 AC_CACHE_VAL(ac_cv_little_endian_double, [
@@ -3676,6 +3873,8 @@ fi
 
 # This inline assembler syntax may also work for suncc and icc,
 # so we try it on all platforms.
+# Note MSVC build use Python/dtoa.c, but I could not find any reason
+# to use this file for GCC(mingw*) builds, so mingw* will use gcc asm :)
 
 AC_MSG_CHECKING(whether we can use gcc inline assembler to get and set x87 control word)
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[
@@ -3723,6 +3922,11 @@ int main() {
 [ac_cv_x87_double_rounding=yes],
 [ac_cv_x87_double_rounding=no])
 CC="$ac_save_cc"
+if test "x$cross_compiling" = xyes; then
+  case $host in
+    *-*-mingw*) ac_cv_x87_double_rounding=yes;;
+  esac
+fi
 AC_MSG_RESULT($ac_cv_x87_double_rounding)
 if test "$ac_cv_x87_double_rounding" = yes
 then
@@ -3740,6 +3944,12 @@ LIBS="$LIBS $LIBM"
 # On FreeBSD 6.2, it appears that tanh(-0.) returns 0. instead of
 # -0. on some architectures.
 AC_MSG_CHECKING(whether tanh preserves the sign of zero)
+case $host in
+  *-*-mingw*)
+    # Some MSVC runtimes don't preserve zero sign.
+    # On mingw host we will use always replacement function.
+    ac_cv_tanh_preserves_zero_sign=no;;
+esac
 AC_CACHE_VAL(ac_cv_tanh_preserves_zero_sign, [
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <math.h>
@@ -3765,6 +3975,12 @@ fi
 
 AC_CHECK_FUNCS([acosh asinh atanh copysign erf erfc expm1 finite gamma])
 AC_CHECK_FUNCS([hypot lgamma log1p round tgamma])
+dnl NOTE:
+dnl MSVC build PC/pyconfig.h define HAVE_DECL_ISINF but it is useless
+dnl since header define Py_IS_INFINITY as (!_finite(X) && !_isnan(X)).
+dnl Also in pymath.h is commented too how PC/pyconfig.h define isinf.
+dnl For mingw to keep compatibility with MSVC build we will define
+dnl Py_IS_INFINITY in pyport.h.
 AC_CHECK_DECLS([isinf, isnan, isfinite], [], [], [[#include <math.h>]])
 
 LIBS=$LIBS_SAVE
@@ -3774,6 +3990,13 @@ LIBS=$LIBS_SAVE
 # the kernel module that provides POSIX semaphores
 # isn't loaded by default, so an attempt to call
 # sem_open results in a 'Signal 12' error.
+if test $ac_cv_func_sem_open = yes; then
+case $host in
+  *-*-mingw*)
+    # GCC 4.4+ (mingw) support posix threads(!)
+    # bug we won't use them on windows platform.
+    ac_cv_posix_semaphores_enabled=no;;
+esac
 AC_MSG_CHECKING(whether POSIX semaphores are enabled)
 AC_CACHE_VAL(ac_cv_posix_semaphores_enabled,
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
@@ -3799,6 +4022,9 @@ int main(void) {
 [ac_cv_posix_semaphores_enabled=yes])
 )
 AC_MSG_RESULT($ac_cv_posix_semaphores_enabled)
+else
+   ac_cv_posix_semaphores_enabled=no
+fi
 if test $ac_cv_posix_semaphores_enabled = no
 then
   AC_DEFINE(POSIX_SEMAPHORES_NOT_ENABLED, 1,
@@ -3807,6 +4033,16 @@ fi
 
 # Multiprocessing check for broken sem_getvalue
 AC_MSG_CHECKING(for broken sem_getvalue)
+case $host in
+  *-*-mingw*)
+    # GCC(mingw) 4.4+ require and use posix threads(pthreads-w32)
+    # Also system may contain installed pthreads-w32.
+    # NOTE the test case below don't work for pthreads-w32:
+    # - SEM_FAILED is not defined;
+    # - sem_open is stub;
+    # - sem_getvalue work(!).
+    ac_cv_broken_sem_getvalue=no;;
+esac
 AC_CACHE_VAL(ac_cv_broken_sem_getvalue,
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <unistd.h>
@@ -3892,6 +4128,9 @@ if test "$wchar_h" = yes
 then
   # check whether wchar_t is signed or not
   AC_MSG_CHECKING(whether wchar_t is signed)
+  case $host in
+    *-*-mingw*) ac_cv_wchar_t_signed=no;;
+  esac
   AC_CACHE_VAL(ac_cv_wchar_t_signed, [
   AC_RUN_IFELSE([AC_LANG_SOURCE([[
   #include <wchar.h>
@@ -4323,6 +4562,12 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <curses.h>]], [[void *x=resizeterm
 )
 
 AC_MSG_NOTICE([checking for device files])
+case $host in
+  *-*-mingw*)
+    ac_cv_file__dev_ptmx=ignore #NOTE: under MSYS environment device exist
+    ac_cv_file__dev_ptc=no
+    ;;
+esac
 
 dnl NOTE: Inform user how to proceed with files when cross compiling.
 if test "x$cross_compiling" = xyes; then
@@ -4351,6 +4596,9 @@ fi
 
 if test "$have_long_long" = yes
 then
+  case $host in
+    *-*-mingw*) ac_cv_have_long_long_format=yes;;
+  esac
   AC_MSG_CHECKING(for %lld and %llu printf() format support)
   AC_CACHE_VAL(ac_cv_have_long_long_format,
   AC_RUN_IFELSE([AC_LANG_SOURCE([[[
@@ -4419,6 +4667,9 @@ then
 fi
 
 
+case $host in
+  *-*-mingw*) ac_cv_have_size_t_format=no;;
+esac
 AC_CACHE_CHECK([for %zd printf() format support], ac_cv_have_size_t_format, [dnl
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
 #include <stdio.h>
@@ -4465,6 +4716,8 @@ if test "$ac_cv_have_size_t_format" != no ; then
   [Define to printf format modifier for Py_ssize_t])
 fi
 
+dnl NOTE: check is incorrect for win host systems, i.e. mingw and etc.,
+dnl but on those systems socklen_t is defined in ws2tcpip.h as int ;)
 AC_CHECK_TYPE(socklen_t,,
   AC_DEFINE(socklen_t,int,
             [Define to `int' if <sys/socket.h> does not define.]),[
@@ -4489,8 +4742,39 @@ do
   THREADHEADERS="$THREADHEADERS \$(srcdir)/$h"
 done
 
+# FIXME: in cross-compilation env. (mingw on linux) how to select correct compiler ?
+# The current py-code will created modules with .so suffix and environment
+# variable setting SO=$(SO) don't help
+# see output of: python setup.py build --help-compiler
+AC_SUBST(PYMOD_BUILDOPT)
+case $host in
+  *-*-mingw*) PYMOD_BUILDOPT="--compiler mingw32";;
+esac
+
+dnl Objects for python and modules
+# Python interpreter main program for frozen scripts
+AC_SUBST(PYTHON_OBJS_FROZENMAIN)
+PYTHON_OBJS_FROZENMAIN="Python/frozenmain.o"
+# MODULE_GETPATH - default sys.path calculations
+AC_SUBST(MODULE_GETPATH)
+MODULE_GETPATH=Modules/getpath.o
+case $host in
+  *-*-mingw*)
+    dnl "PC" is project sub-directory and we has to prepend user defined flags
+    CPPFLAGS="-I\$(srcdir)/Python -I\$(srcdir)/PC $CPPFLAGS"
+
+    # FIXME: why windows builds don't use PC/frozen_dllmain.o ?
+    PYTHON_OBJS_FROZENMAIN=""
+    # default sys.path calculations for windows platforms
+    MODULE_GETPATH=PC/getpathp.o
+    ;;
+esac
+
 AC_SUBST(SRCDIRS)
 SRCDIRS="Parser Grammar Objects Python Modules Mac"
+case $host in
+  *-*-mingw*) SRCDIRS="$SRCDIRS PC";;
+esac
 AC_MSG_CHECKING(for build directories)
 for dir in $SRCDIRS; do
     if test ! -d $dir; then

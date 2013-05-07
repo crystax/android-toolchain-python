@@ -13,6 +13,13 @@
 # endif
 
 #else /* MS_WINDOWS */
+#ifdef socklen_t
+/* Configure script define to int on windows for GCC compiler.
+   Avoid GCC 4.4+ error (two or more data types in declaration specifiers)
+   as undef it first.
+ */
+# undef socklen_t
+#endif
 # include <winsock2.h>
 # include <ws2tcpip.h>
 /* VC6 is shipped with old platform headers, and does not have MSTcpIP.h

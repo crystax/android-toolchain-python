@@ -22,6 +22,31 @@
 #include <conio.h>
 #include <sys/locking.h>
 
+#if defined(__MINGW32__)
+#if __MSVCRT_VERSION__ >= 0x0700
+# define _WCONIO_DEFINED
+/* NOTE: Up to version ?.?? mingw don't define functions
+ * listed below. Also it require module to be linked with
+ * ms-vcrt at least verion 7.
+ * To build with different runtimes see:
+ *  http://www.mingw.org/wiki/HOWTO_Use_the_GCC_specs_file
+ *
+ * Also note that NT5.1(XP), shiped with msvcrt version 7.0,
+ * contain all those functions, but library name is msvcrt.dll.
+ * So if you like module to run on w2k as is you must define
+ * appropriate __MSVCRT_VERSION__ .
+ * If you like those functions even on w2k you must link
+ * with appropriate runtime and to pack it in distributions.
+ * This is what MSVC build do - it is build and packed
+ * with version 9.0 of Microsoft C-runtime.
+ */
+_CRTIMP wint_t __cdecl __MINGW_NOTHROW	_getwch (void);
+_CRTIMP wint_t __cdecl __MINGW_NOTHROW	_getwche (void);
+_CRTIMP wint_t __cdecl __MINGW_NOTHROW	_putwch (wchar_t);
+_CRTIMP wint_t __cdecl __MINGW_NOTHROW	_ungetwch(wint_t);
+#endif /* __MSVCRT_VERSION__ >= 0x0700 */
+#endif
+
 #ifdef _MSC_VER
 #if _MSC_VER >= 1500 && _MSC_VER < 1600
 #include <crtassem.h>
@@ -346,6 +371,7 @@ msvcrt_ungetwch(PyObject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "u:ungetwch", &ch))
         return NULL;
 
+    /* FIXME: why _ungetch is called instead _ungetwch */
     if (_ungetch(ch) == EOF)
         return PyErr_SetFromErrno(PyExc_IOError);
     Py_INCREF(Py_None);

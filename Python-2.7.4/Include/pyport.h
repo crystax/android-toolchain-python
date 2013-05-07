@@ -693,6 +693,137 @@ extern int fdatasync(int);
 #endif /* 0 */
 
 
+#ifdef __MINGW32__
+/* FIXME: some of next definitions specific to gcc(mingw build) can be
+   generalized on definitions of _WIN32 or WIN32 and to be common for
+   all windows build instead explicitly to define only for non-autotools
+   based builds (see PC/pyconfig.h for details). */
+#if !defined(MS_WIN64) && defined(_WIN64)
+#  define MS_WIN64
+#endif
+#if !defined(MS_WIN32) && defined(_WIN32)
+#  define MS_WIN32
+#endif
+#if !defined(MS_WIN32) && defined(_WIN32)
+#  define MS_WIN32
+#endif
+#if !defined(MS_WINDOWS) && defined(MS_WIN32)
+#  define MS_WINDOWS
+#endif
+
+#ifndef PYTHONPATH
+#  define PYTHONPATH ".\\DLLs;.\\lib;.\\lib\\plat-win;.\\lib\\lib-tk"
+#endif
+
+/* python 2.6+ requires Windows 2000 or greater. */
+#define Py_WINVER 0x0500
+
+#if defined(Py_BUILD_CORE) || defined(Py_BUILD_CORE_MODULE)
+/* FIXME if NTDDI_xxx is in use by mingw (see PC/pyconfig.h) */
+#ifndef WINVER
+#  define WINVER Py_WINVER
+#endif
+#ifndef _WIN32_WINNT
+#  define _WIN32_WINNT Py_WINVER
+#endif
+#endif
+
+#ifdef PLATFORM
+/*NOTE: if compile getplatform.c PLATFORM is set to MACHDEP that is
+  "win" for mingw build (see respective comment in configure.in). */
+# undef PLATFORM
+#endif
+/* always set to "win32" - see PC/pyconfig.h */
+#define PLATFORM "win32"
+
+#if defined(MS_WIN64)
+#  define SIZEOF_HKEY 8
+#elif defined(MS_WIN32)
+#  define SIZEOF_HKEY 4
+#endif
+
+/*NOTE: mingw has isinf as macro defined in math.h.
+  Since PC/pyconfig.h define Py_IS_INFINITY(X) that cover HAVE_DECL_ISFINITE
+  here for Py_IS_INFINITY we define same as for MSVC build.
+  This makes HAVE_DECL_ISFINITE needless.
+  Also see commants in configure.in and pymath.h. */
+#define Py_IS_INFINITY(X) (!_finite(X) && !_isnan(X))
+
+#ifndef HAVE_LARGEFILE_SUPPORT
+/*
+  FIXME: on windows platforms:
+   - Python use PY_LONG_LONG(!) for Py_off_t (_fileio.c);
+   - HAVE_LARGEFILE_SUPPORT is defined in PC/pyconfig.h;
+   - PC/pyconfig.h define 4 for SIZEOF_OFF_T and 8 for SIZEOF_FPOS_T;
+   - If HAVE_LARGEFILE_SUPPORT isn't defined python will use off_t(!)
+   for Py_off_t (see fileobjects.c and bz2module.c).
+  Since for mingw configure detect 4 for size of "off_t" and 8 - for
+  "fpos_t" we has to define HAVE_LARGEFILE_SUPPORT too.
+  TODO: to test with AC_SYS_LARGEFILE and appropriate updates in
+  python code.
+*/
+#  define HAVE_LARGEFILE_SUPPORT
+#endif
+
+#if defined(Py_ENABLE_SHARED)
+#  define MS_COREDLL 1 /* deprecated old symbol, but still in use for windows code */
+#else
+#  define MS_NO_COREDLL 1
+#endif
+
+#if Py_UNICODE_SIZE == 2
+/* For mingw is 2 but FIXME: What about to raise error in configure if
+   unicode size isn't two ? Did python windows code support ucs4 ? */
+#  define Py_WIN_WIDE_FILENAMES
+#endif
+
+/* NOTE: Don't define HAVE_STDDEF_H.
+ * It is defined by PC/pyconfig.h and used by Include/Python.h
+ * (with comment For size_t?) but isn't required for mingw  */
+#define Py_SOCKET_FD_CAN_BE_GE_FD_SETSIZE
+
+/* All other defines from PC/pyconfig.h are in autoconf generated
+   pyconfig.h */
+#if 0
+/*FIXME:
+  MSDN:
+    "The getaddrinfo function was added to the ws2_32.dll on Windows XP
+    and later."
+  mingw:
+    getaddrinfo and getnameinfo is defined for WINVER >= 0x0501.
+  PC/pyconfig.h:
+    "Python 2.6+ requires Windows 2000 or greater"
+  So far so good but socketmodule.h define HAVE_GETADDRINFO and
+  HAVE_GETNAMEINFO under very specific condition :
+    # ifdef SIO_GET_MULTICAST_FILTER
+    #  include <MSTcpIP.h>
+  So the question is "Separate SDKs" required for w2k in MSVC build ?
+  TODO: resolve later, may by configure :-/. For now python code will
+  use fake implementation and if user define appropriate value for
+  WINVER - the functionas from C runtime.
+  For details see socketmodule.c .
+  */
+#ifndef HAVE_GETADDRINFO
+#  define HAVE_GETADDRINFO
+#endif
+#ifndef HAVE_GETNAMEINFO
+#  define HAVE_GETNAMEINFO
+#endif
+#endif
+
+/* Refer to <Modules/_math.h> .
+   For mingw host configure detect functions described as HAVE_XXX
+   in _math.h but as MSVC don't define them we will undefine HAVE_XXX
+   too to use _Py_* replacements same as MSVC build .
+ */
+#undef HAVE_ACOSH
+#undef HAVE_ASINH
+#undef HAVE_ATANH
+#undef HAVE_EXPM1
+#undef HAVE_LOG1P
+
+#endif /*def __MINGW32__*/
+
 /* On 4.4BSD-descendants, ctype functions serves the whole range of
  * wchar_t character set rather than single byte code points only.
  * This characteristic can break some operations of string object
@@ -746,12 +877,12 @@ extern int fdatasync(int);
 */
 
 /*
-  All windows ports, except cygwin, are handled in PC/pyconfig.h.
+  MSVC windows port is handled in PC/pyconfig.h.
 
-  BeOS and cygwin are the only other autoconf platform requiring special
-  linkage handling and both of these use __declspec().
+  BeOS, mingw32 and cygwin use autoconf and require special
+  linkage handling and all of these use __declspec().
 */
-#if defined(__CYGWIN__) || defined(__BEOS__)
+#if defined(__CYGWIN__) || defined(__MINGW32__) || defined(__BEOS__)
 #       define HAVE_DECLSPEC_DLL
 #endif
 
@@ -774,9 +905,17 @@ extern int fdatasync(int);
         /* Under Cygwin, auto-import functions to prevent compilation */
         /* failures similar to those described at the bottom of 4.1: */
         /* http://docs.python.org/extending/windows.html#a-cookbook-approach */
-#                       if !defined(__CYGWIN__)
+#                       if !defined(__CYGWIN__) && !defined(__MINGW32__)
 #                               define PyAPI_FUNC(RTYPE) __declspec(dllimport) RTYPE
-#                       endif /* !__CYGWIN__ */
+#                       else
+#                               define PyAPI_FUNC(RTYPE) RTYPE
+#                       endif /* !__CYGWIN__  !__MINGW32__ */
+            /* NOTE: The issue3945 "compile error in _fileio.c (cygwin)"
+             * was resolved with modification of code.
+             * This issue was resolved for gcc(mingw) with enabling auto
+             * import feature. Since _fileio.c problem now disappear there
+             * is no more reasons to avoid dllimport for gcc(mingw).
+             */
 #                       define PyAPI_DATA(RTYPE) extern __declspec(dllimport) RTYPE
         /* module init functions outside the core must be exported */
 #                       if defined(__cplusplus)

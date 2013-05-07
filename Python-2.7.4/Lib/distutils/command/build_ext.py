@@ -19,7 +19,8 @@ from distutils.extension import Extension
 from distutils.util import get_platform
 from distutils import log
 
-if os.name == 'nt':
+# GCC(mingw): os.name is "nt" but build system is posix
+if os.name == 'nt' and sys.version.find('GCC') < 0:
     from distutils.msvccompiler import get_build_version
     MSVC_VERSION = int(get_build_version())
 
@@ -179,7 +180,8 @@ class build_ext (Command):
         # for extensions under windows use different directories
         # for Release and Debug builds.
         # also Python's library directory must be appended to library_dirs
-        if os.name == 'nt':
+        # GCC(mingw): os.name is "nt" but build system is posix
+        if os.name == 'nt' and sys.version.find('GCC') < 0:
             # the 'libs' directory is for binary installs - we assume that
             # must be the *native* platform.  But we don't really support
             # cross-compiling via a binary install anyway, so we let it go.
@@ -221,7 +223,8 @@ class build_ext (Command):
 
         # for extensions under Cygwin and AtheOS Python's library directory must be
         # appended to library_dirs
-        if sys.platform[:6] == 'cygwin' or sys.platform[:6] == 'atheos':
+        if (sys.platform[:6] == 'cygwin' or sys.platform[:6] == 'atheos'
+            or (sys.platform == 'win32' and sys.version.find('GCC') >= 0)):
             if sys.executable.startswith(os.path.join(sys.exec_prefix, "bin")):
                 # building third party extensions
                 self.library_dirs.append(os.path.join(sys.prefix, "lib",
@@ -699,6 +702,34 @@ class build_ext (Command):
         # pyconfig.h that MSVC groks.  The other Windows compilers all seem
         # to need it mentioned explicitly, though, so that's what we do.
         # Append '_d' to the python import library on debug builds.
+
+        # FIXME: What is purpose of code below ?
+        # The posix build system khow requred libraries to build a module.
+        # The libraries are stored in config(Makefile) variables BLDLIBRARY,
+        # MODLIBS and SHLIBS. Note that some variables may contain linker
+        # flags.
+        # NOTE: For now we will check only GCC(mingw) compiler as is clear
+        # that we build for windows platfrom.
+        # The code for GCC(mingw) is not correct but this is distutils
+        # limitation - we has to pass variables to the linker as is
+        # instead only library names.
+        if self.compiler.compiler_type == 'mingw32':
+            from distutils import sysconfig
+            template = "python%s"
+            if self.debug:
+                template = template + '_d'
+            extra = [(template % (sysconfig.get_config_var('VERSION')))]
+            for lib in sysconfig.get_config_var('BLDLIBRARY').split():
+                if lib.startswith('-l'):
+                    extra.append(lib[2:])
+            for lib in sysconfig.get_config_var('MODLIBS').split():
+                if lib.startswith('-l'):
+                    extra.append(lib[2:])
+            for lib in sysconfig.get_config_var('SHLIBS').split():
+                if lib.startswith('-l'):
+                    extra.append(lib[2:])
+            return ext.libraries + extra
+
         if sys.platform == "win32":
             from distutils.msvccompiler import MSVCCompiler
             if not isinstance(self.compiler, MSVCCompiler):

@@ -8,7 +8,7 @@ from distutils import log
 
 __revision__ = "$Id$"
 
-import sys, os, string
+import sys, os, string, re
 from types import *
 from distutils.core import Command
 from distutils.debug import DEBUG
@@ -20,7 +20,36 @@ from distutils.util import get_platform
 from distutils.errors import DistutilsOptionError
 from site import USER_BASE
 from site import USER_SITE
+from string import maketrans
 
+def is_msys_mingw():
+    if sys.platform == "win32" and "MSYSTEM" in os.environ and sys.version.find("GCC") >= 0:
+        if os.environ["MSYSTEM"] == "MINGW32":
+            return 1
+    return 0
+
+def has_msys():
+    _msysdll = "msys-1.0.dll"
+    for _path in os.environ["PATH"].split(os.pathsep):
+        currpath = os.path.join(_path, _msysdll)
+        if os.path.isfile(currpath) and os.access(currpath, os.F_OK):
+            return _path
+    return None
+
+def msys_root():
+    if is_msys_mingw() and has_msys() is not None:
+        arg = has_msys()
+        arg = arg.rstrip("\\")
+        if arg.endswith("\\bin"):
+            # drop the \\bin
+            arg = arg[:-4]
+        table = maketrans('\\', '/')
+        arg = arg.translate(table)
+        if arg.endswith("/"):
+            arg = arg[:-1]
+        return arg
+    else:
+        return None
 
 if sys.version < "2.2":
     WINDOWS_SCHEME = {
@@ -314,6 +343,14 @@ class install (Command):
         self.expand_basedirs()
 
         self.dump_dirs("post-expand_basedirs()")
+
+        # MSYS (probably) will have transformed --root=/ to the
+        # windows path where the msys is installed, so we check if root begins
+        # with msysroot and if it does then remove this part.
+        if self.root is not None and is_msys_mingw():
+            msysroot = msys_root()
+            if msysroot != None and self.root.find(msysroot)==0:
+                self.root = self.root.replace(msysroot, "/")
 
         # Now define config vars for the base directories so we can expand
         # everything else.

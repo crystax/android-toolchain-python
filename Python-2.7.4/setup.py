@@ -467,10 +467,11 @@ class PyBuildExt(build_ext):
             os.unlink(tmpfile)
 
     def detect_modules(self):
-        # Ensure that /usr/local is always used
-        add_dir_to_list(self.compiler.library_dirs, '/usr/local/lib')
-        add_dir_to_list(self.compiler.include_dirs, '/usr/local/include')
-        self.add_multiarch_paths()
+        if not cross_compiling:
+            # Ensure that /usr/local is always used
+            add_dir_to_list(self.compiler.library_dirs, '/usr/local/lib')
+            add_dir_to_list(self.compiler.include_dirs, '/usr/local/include')
+            self.add_multiarch_paths()
 
         # Add paths specified in the environment variables LDFLAGS and
         # CPPFLAGS for header and library files.

@@ -15,7 +15,9 @@
   __MINGW32__ to prevent case when in GCC 3.4.5 build
   envirionment is installed posix thread package.
  */
-# undef HAVE_PTHREAD_H
+# ifndef HAVE_PTHREAD_H
+#  undef _POSIX_THREADS
+# endif
 #endif
 
 #ifndef _POSIX_THREADS

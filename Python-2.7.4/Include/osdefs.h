@@ -10,7 +10,7 @@ extern "C" {
 /* Mod by chrish: QNX has WATCOM, but isn't DOS */
 #if !defined(__QNX__)
 #if defined(MS_WINDOWS) || defined(__BORLANDC__) || defined(__WATCOMC__) || defined(__DJGPP__) || defined(PYOS_OS2)
-#if defined(PYOS_OS2) && defined(PYCC_GCC)
+#if (defined(PYOS_OS2) && defined(PYCC_GCC)) || defined(__MINGW32__)
 #define MAXPATHLEN 260
 #define SEP '/'
 #define ALTSEP '\\'
@@ -20,6 +20,7 @@ extern "C" {
 #define MAXPATHLEN 256
 #endif
 #define DELIM ';'
+#define DELIMSTR ";"
 #endif
 #endif
 
@@ -27,6 +28,7 @@ extern "C" {
 #define SEP '.'
 #define MAXPATHLEN 256
 #define DELIM ','
+#define DELIMSTR ","
 #endif
 
 
@@ -55,6 +57,7 @@ extern "C" {
 /* Search path entry delimiter */
 #ifndef DELIM
 #define DELIM ':'
+#define DELIMSTR ":"
 #endif
 
 #ifdef __cplusplus

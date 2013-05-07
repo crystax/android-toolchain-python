@@ -84,22 +84,22 @@ MACHDESTLIB=$(BINLIBDEST)
 # Empty since this is now just the runtime prefix.
 DESTPATH=
 
-# Site specific path components -- should begin with : if non-empty
+# Site specific path components -- should begin with $(DELIM) if non-empty
 SITEPATH=
 
 # Standard path components for test modules
 TESTPATH=
 
 # Path components for machine- or system-dependent modules and shared libraries
-MACHDEPPATH=:plat-$(MACHDEP)
+MACHDEPPATH=$(DELIM)plat-$(MACHDEP)
 EXTRAMACHDEPPATH=
 
 # Path component for the Tkinter-related modules
 # The TKPATH variable is always enabled, to save you the effort.
-TKPATH=:lib-tk
+TKPATH=$(DELIM)lib-tk
 
 # Path component for old modules.
-OLDPATH=:lib-old
+OLDPATH=$(DELIM)lib-old
 
 COREPYTHONPATH=$(DESTPATH)$(SITEPATH)$(TESTPATH)$(MACHDEPPATH)$(EXTRAMACHDEPPATH)$(TKPATH)$(OLDPATH)
 PYTHONPATH=$(COREPYTHONPATH)

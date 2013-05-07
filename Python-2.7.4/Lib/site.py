@@ -537,8 +537,9 @@ def main():
 
     abs__file__()
     known_paths = removeduppaths()
-    if (os.name == "posix" and sys.path and
-        os.path.basename(sys.path[-1]) == "Modules"):
+    if ((os.name == "posix" or
+        (sys.platform == "win32" and sys.version.find("GCC") >= 0))
+       and sys.path and os.path.basename(sys.path[-1]) == "Modules"):
         addbuilddir()
     if ENABLE_USER_SITE is None:
         ENABLE_USER_SITE = check_enableusersite()

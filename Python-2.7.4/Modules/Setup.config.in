@@ -18,6 +18,8 @@
 @BUILDIN_WIN32_MODULE@operator operator.c	# operator.add() and similar goodies
 @BUILDIN_WIN32_MODULE@_locale _localemodule.c	# -lintl
 @BUILDIN_WIN32_MODULE@_winreg ../PC/_winreg.c
+@BUILDIN_WIN32_MODULE@time timemodule.c
+@BUILDIN_WIN32_MODULE@msvcrt ../PC/msvcrtmodule.c
 
 
 # The rest of the modules previously listed in this file are built

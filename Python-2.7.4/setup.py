@@ -2047,38 +2047,6 @@ class PyBuildExt(build_ext):
         return True
 
     def configure_ctypes(self, ext):
-        if host_platform == 'win32':
-            # win32 platform use own sources and includes
-            # from Modules/_ctypes/libffi_msvc/
-            srcdir = sysconfig.get_config_var('srcdir')
-
-            ffi_srcdir = os.path.abspath(os.path.join(srcdir, 'Modules',
-                                         '_ctypes'))
-            sources = [os.path.join(ffi_srcdir, p)
-                for p in ['malloc_closure.c',
-                         ]]
-            ext.sources.extend(sources)
-
-            ffi_srcdir = os.path.abspath(os.path.join(srcdir, 'Modules',
-                                         '_ctypes', 'libffi_msvc'))
-            #FIXME: _ctypes/libffi_msvc/win64.asm ?
-            sources = [os.path.join(ffi_srcdir, p)
-                for p in ['ffi.c',
-                          'prep_cif.c',
-                          'win32.S',
-                         ]]
-            # NOTE: issue2942 don't resolve problem with assembler code.
-            # It seems to me that python refuse to build an extension
-            # if exist a source with unknown suffix.
-            self.compiler.src_extensions.append('.s')
-            self.compiler.src_extensions.append('.S')
-            ext.include_dirs.append(ffi_srcdir)
-            ext.sources.extend(sources)
-            ext.libraries.extend(['ole32', 'oleaut32', 'uuid'])
-            #AdditionalOptions="/EXPORT:DllGetClassObject,PRIVATE /EXPORT:DllCanUnloadNow,PRIVATE"
-            ext.export_symbols.extend(['DllGetClassObject PRIVATE',
-                                       'DllCanUnloadNow PRIVATE'])
-            return True
         if not self.use_system_libffi:
             if host_platform == 'darwin':
                 return self.configure_ctypes_darwin(ext)
@@ -2129,11 +2097,6 @@ class PyBuildExt(build_ext):
                                fficonfig['ffi_sources'])
             ext.include_dirs.extend(include_dirs)
             ext.extra_compile_args.extend(extra_compile_args)
-            if host_platform == 'win32':
-                ext.libraries.extend(['ole32', 'oleaut32', 'uuid'])
-                #AdditionalOptions="/EXPORT:DllGetClassObject,PRIVATE /EXPORT:DllCanUnloadNow,PRIVATE"
-                ext.export_symbols.extend(['DllGetClassObject PRIVATE',
-                                           'DllCanUnloadNow PRIVATE'])
         return True
 
     def detect_ctypes(self, inc_dirs, lib_dirs):

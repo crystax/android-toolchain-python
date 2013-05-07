@@ -827,7 +827,9 @@ static int _call_function_pointer(int flags,
 #ifndef DONT_USE_SEH
     __try {
 #endif
+#ifndef __MINGW32__
         delta =
+#endif
 #endif
                 ffi_call(&cif, (void *)pProc, resmem, avalues);
 #ifdef MS_WIN32
@@ -861,6 +863,7 @@ static int _call_function_pointer(int flags,
         return -1;
     }
 #endif
+#ifndef __MINGW32__
 #ifdef MS_WIN64
     if (delta != 0) {
         PyErr_Format(PyExc_RuntimeError,
@@ -889,6 +892,7 @@ static int _call_function_pointer(int flags,
                  delta);
         return -1;
     }
+#endif
 #endif
 #endif
     if ((flags & FUNCFLAG_PYTHONAPI) && PyErr_Occurred())

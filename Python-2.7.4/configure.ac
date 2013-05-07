@@ -2399,14 +2399,32 @@ AC_ARG_WITH(system_ffi,
             [],
             [with_system_ffi="no"])
 
-if test "$with_system_ffi" = "yes" && test -n "$PKG_CONFIG"; then
-    LIBFFI_INCLUDEDIR="`"$PKG_CONFIG" libffi --cflags-only-I 2>/dev/null | sed -e 's/^-I//;s/ *$//'`"
+if test "$with_system_ffi" = "yes"; then
+    LIBFFI_INCLUDEDIR="$LIBFFI_INCLUDEDIR"
+fi
+AC_MSG_RESULT($with_system_ffi)
+
+ac_previous_cppflags=$CPPFLAGS
+CPPFLAGS="-I$LIBFFI_INCLUDEDIR"
+ac_previous_ldflags=$LDFLAGS
+# check for ffi.h
+AC_CHECK_HEADER(ffi.h, [
+  AC_DEFINE(WITH_SYSTEM_LIBFFI, 1,
+  [Define if we have external libffi.])
+  ffi_h="yes"
+],
+ffi_h="no"
+)
+if test "$ffi_h" = "yes"; then
+    LIBFFI_INCLUDEDIR="$LIBFFI_INCLUDEDIR"
 else
     LIBFFI_INCLUDEDIR=""
 fi
+CPPFLAGS=$ac_previous_cppflags
+LDFLAGS=$ac_previous_ldflags
 AC_SUBST(LIBFFI_INCLUDEDIR)
 
-AC_MSG_RESULT($with_system_ffi)
+
 
 # Check for --with-dbmliborder
 AC_MSG_CHECKING(for --with-dbmliborder)

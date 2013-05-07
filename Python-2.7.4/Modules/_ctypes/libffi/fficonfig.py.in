@@ -1,7 +1,6 @@
 ffi_sources = """
 src/prep_cif.c
 src/closures.c
-src/dlmalloc.c
 """.split()
 
 ffi_platforms = {
@@ -23,6 +22,7 @@ ffi_platforms = {
     'FRV': ['src/frv/eabi.S', 'src/frv/ffi.c'],
     'S390': ['src/s390/sysv.S', 'src/s390/ffi.c'],
     'X86_64': ['src/x86/ffi64.c', 'src/x86/unix64.S', 'src/x86/ffi.c', 'src/x86/sysv.S'],
+    'X86_WIN64': ['src/x86/ffi.c', 'src/x86/win64.S'],
     'SH': ['src/sh/sysv.S', 'src/sh/ffi.c'],
     'SH64': ['src/sh64/sysv.S', 'src/sh64/ffi.c'],
     'PA': ['src/pa/linux.S', 'src/pa/ffi.c'],
@@ -30,6 +30,9 @@ ffi_platforms = {
     'PA_HPUX': ['src/pa/hpux32.S', 'src/pa/ffi.c'],
 }
 
+ffi_target = '@TARGET@'
+if ffi_target not in ['X86_WIN32', 'X86_WIN64']:
+    ffi_sources += ['src/dlmalloc.c']
 ffi_sources += ffi_platforms['@TARGET@']
 
 ffi_cflags = '@CFLAGS@'

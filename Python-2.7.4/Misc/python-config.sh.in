@@ -20,8 +20,13 @@ fi
 installed_prefix ()
 {
     local RESULT=$(dirname $(cd $(dirname "$1") && pwd -P))
-    if [ $(which readlink) ] ; then
-        RESULT=$(readlink -f "$RESULT")
+    local READLINK=readlink
+    if [ "$(uname -s)" = "Darwin" ] ; then
+        # readlink in darwin can't handle -f.  Use greadlink from MacPorts instead.
+        READLINK=greadlink
+    fi
+    if [ $(which $READLINK) ] ; then
+        RESULT=$($READLINK -f "$RESULT")
     fi
     echo $RESULT
 }

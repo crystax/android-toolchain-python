@@ -1324,7 +1324,7 @@ class PyBuildExt(build_ext):
 
         dbm_order = ['gdbm']
         # The standard Unix dbm module:
-        if host_platform not in ['cygwin']:
+        if host_platform not in ['cygwin', 'mingw', 'win32']:
             config_args = [arg.strip("'")
                            for arg in sysconfig.get_config_var("CONFIG_ARGS").split()]
             dbm_args = [arg for arg in config_args

@@ -18,6 +18,7 @@
 #include "eval.h"
 #include "marshal.h"
 #include "abstract.h"
+#include "osdefs.h"
 
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
@@ -666,6 +667,13 @@ static char *progname = "python";
 void
 Py_SetProgramName(char *pn)
 {
+#ifdef __MINGW32__
+    char* seps = strchr(pn, ALTSEP);
+    while(seps) {
+        *seps = SEP;
+        seps = strchr(seps, ALTSEP);
+    }
+#endif
     if (pn && *pn)
         progname = pn;
 }

@@ -3039,7 +3039,7 @@ AC_SUBST(MACHDEP_OBJS)
 AC_MSG_CHECKING(MACHDEP_OBJS)
 case $host in
   *-*-mingw*)
-    extra_machdep_objs="PC/dl_nt.o PC/getpathp.o PC/import_nt.o"
+    extra_machdep_objs="PC/dl_nt.o Modules/getpath.o PC/import_nt.o"
     ;;
 esac
 if test -z "$MACHDEP_OBJS"
@@ -4794,7 +4794,7 @@ case $host in
     # FIXME: why windows builds don't use PC/frozen_dllmain.o ?
     PYTHON_OBJS_FROZENMAIN=""
     # default sys.path calculations for windows platforms
-    MODULE_GETPATH=PC/getpathp.o
+    MODULE_GETPATH=Modules/getpath.o
     ;;
 esac
 

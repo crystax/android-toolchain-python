@@ -10,6 +10,10 @@
 #include <mach-o/dyld.h>
 #endif
 
+#ifdef MS_WINDOWS
+#include <windows.h>
+#endif
+
 /* Search in some common locations for the associated Python libraries.
  *
  * Two directories must be found, the platform independent directory
@@ -128,6 +132,10 @@
 static char prefix[MAXPATHLEN+1];
 static char exec_prefix[MAXPATHLEN+1];
 static char progpath[MAXPATHLEN+1];
+#ifdef MS_WINDOWS
+static char dllpath[MAXPATHLEN+1];
+extern HANDLE PyWin_DLLhModule;
+#endif
 static char *module_search_path = NULL;
 static char lib_python[] = "lib/python" VERSION;
 
@@ -208,7 +216,11 @@ static void
 joinpath(char *buffer, char *stuff)
 {
     size_t n, k;
+#ifdef MS_WINDOWS
+    if (stuff[0] == SEP || (stuff[0] != 0 && stuff[1] == L':'))
+#else
     if (stuff[0] == SEP)
+#endif
         n = 0;
     else {
         n = strlen(buffer);
@@ -229,7 +241,11 @@ joinpath(char *buffer, char *stuff)
 static void
 copy_absolute(char *path, char *p)
 {
+#ifdef MS_WINDOWS
+    if (p[0] == SEP || (p[0] != 0 && p[1] == ':'))
+#else
     if (p[0] == SEP)
+#endif
         strcpy(path, p);
     else {
         if (!getcwd(path, MAXPATHLEN)) {
@@ -249,7 +265,11 @@ absolutize(char *path)
 {
     char buffer[MAXPATHLEN + 1];
 
+#ifdef MS_WINDOWS
+    if (path[0] == SEP || (path[0] != 0 && path[1] == ':'))
+#else
     if (path[0] == SEP)
+#endif
         return;
     copy_absolute(buffer, path);
     strcpy(path, buffer);
@@ -382,6 +402,35 @@ search_for_exec_prefix(char *argv0_path, char *home)
 }
 
 
+#ifdef MS_WINDOWS
+/* Calculates dllpath and progpath, replacing \\ with / */
+int GetWindowsModulePaths()
+{
+    int result = 0;
+    char* seps;
+    result = GetModuleFileNameA(NULL, progpath, MAXPATHLEN);
+    seps = strchr(progpath, '\\');
+    while(seps) {
+        *seps = '/';
+        seps = strchr(seps, '\\');
+    }
+    dllpath[0] = '\0';
+#ifdef Py_ENABLE_SHARED
+    if (PyWin_DLLhModule) {
+        if((GetModuleFileNameA(PyWin_DLLhModule, dllpath, MAXPATHLEN) > 0)) {
+            result = 1;
+            seps = strchr(dllpath, '\\');
+            while(seps) {
+                *seps = '/';
+                seps = strchr(seps, '\\');
+            }
+        }
+    }
+#endif
+    return result;
+}
+#endif /* MS_WINDOWS */
+
 static void
 calculate_path(void)
 {
@@ -433,6 +482,10 @@ calculate_path(void)
      else if(0 == _NSGetExecutablePath(progpath, &nsexeclength) && progpath[0] == SEP)
        ;
 #endif /* __APPLE__ */
+#ifdef MS_WINDOWS
+    else if(GetWindowsModulePaths()) {
+    }
+#endif /* MS_WINDOWS */
         else if (path) {
                 while (1) {
                         char *delim = strchr(path, DELIM);
@@ -460,7 +513,11 @@ calculate_path(void)
         }
         else
                 progpath[0] = '\0';
+#ifdef MS_WINDOWS
+        if (progpath[0] != '\0' && progpath[0] != SEP && progpath[1] != ':')
+#else
         if (progpath[0] != SEP && progpath[0] != '\0')
+#endif
                 absolutize(progpath);
         strncpy(argv0_path, progpath, MAXPATHLEN);
         argv0_path[MAXPATHLEN] = '\0';

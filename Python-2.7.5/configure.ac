@@ -913,6 +913,7 @@ fi
 
 # Other platforms follow
 if test $enable_shared = "yes"; then
+  PY_ENABLE_SHARED=1
   AC_DEFINE(Py_ENABLE_SHARED, 1, [Defined if Python is built as a shared library.])
   case $ac_sys_system in
     BeOS*)
@@ -981,6 +982,7 @@ if test $enable_shared = "yes"; then
           ;;
   esac
 else # shared is disabled
+  PY_ENABLE_SHARED=0
   case $ac_sys_system in
     CYGWIN*)
           BLDLIBRARY='$(LIBRARY)'
@@ -992,6 +994,7 @@ else # shared is disabled
           LDLIBRARY='libpython$(VERSION).a';;
   esac
 fi
+AC_SUBST(PY_ENABLE_SHARED)
 
 if test "$cross_compiling" = yes; then
 	RUNSHARED=
@@ -4862,7 +4865,7 @@ done
 AC_MSG_RESULT(done)
 
 # generate output files
-AC_CONFIG_FILES(Makefile.pre Modules/Setup.config Misc/python.pc)
+AC_CONFIG_FILES(Makefile.pre Modules/Setup.config Misc/python.pc Misc/python-config.sh)
 AC_CONFIG_FILES([Modules/ld_so_aix], [chmod +x Modules/ld_so_aix])
 AC_OUTPUT
 

@@ -312,6 +312,10 @@ then
        # `define_xopen_source' in the case statement below. For the
        # current supported cross builds, this macro is not adjusted.
 	case "$host" in
+	*-*-darwin*)
+		ac_sys_system=Darwin
+		ac_sys_version=11
+		;;
 	*-*-linux*)
 		ac_sys_system=Linux
 		;;
@@ -366,6 +370,9 @@ if test "$cross_compiling" = yes; then
 		esac
 		;;
 	*-*-cygwin*|*-*-mingw*)
+		_host_cpu=
+		;;
+	*-*-darwin*)
 		_host_cpu=
 		;;
 	*)
@@ -1171,6 +1178,16 @@ AC_SUBST(BASECFLAGS)
 UNIVERSAL_ARCH_FLAGS=
 AC_SUBST(UNIVERSAL_ARCH_FLAGS)
 
+if test "x$cross_compiling" = xyes; then
+    function arch
+    {
+        echo i386
+    }
+    OSX_ARCH_PROG=arch
+else
+    OSX_ARCH_PROG=/usr/bin/arch
+fi
+
 # tweak BASECFLAGS based on compiler and platform
 case $GCC in
 yes)
@@ -1227,7 +1244,7 @@ yes)
 	    # Calculate the right deployment target for this build.
 	    #
 	    cur_target=`sw_vers -productVersion | sed 's/\(10\.[[0-9]]*\).*/\1/'`
-	    if test ${cur_target} '>' 10.2; then
+	    if test ${cur_target} > 10.2; then
 		    cur_target=10.3
 		    if test ${enable_universalsdk}; then
 			    if test "${UNIVERSAL_ARCHS}" = "all"; then
@@ -1247,7 +1264,7 @@ yes)
 				    cur_target='10.5'
 			    fi
 		    else
-			    if test `/usr/bin/arch` = "i386"; then
+			    if test "$($OSX_ARCH_PROG)" = "i386"; then
 				    # On Intel macs default to a deployment
 				    # target of 10.4, that's the first OSX
 				    # release with Intel support.
@@ -1912,7 +1929,7 @@ case $ac_sys_system/$ac_sys_release in
     if test "${enable_universalsdk}"; then
 	    :
     else
-        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only `/usr/bin/arch`"
+        LIBTOOL_CRUFT="${LIBTOOL_CRUFT} -arch_only $($OSX_ARCH_PROG)"
     fi
     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -install_name $(PYTHONFRAMEWORKINSTALLDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK)'
     LIBTOOL_CRUFT=$LIBTOOL_CRUFT' -compatibility_version $(VERSION) -current_version $(VERSION)';;
@@ -1937,7 +1954,7 @@ case $ac_sys_system/$ac_sys_release in
     ]])],[ac_osx_32bit=yes],[ac_osx_32bit=no],[ac_osx_32bit=yes])
     
     if test "${ac_osx_32bit}" = "yes"; then
-    	case `/usr/bin/arch` in
+    	case $($OSX_ARCH_PROG) in
     	i386) 
     		MACOSX_DEFAULT_ARCH="i386" 
     		;;
@@ -1949,7 +1966,7 @@ case $ac_sys_system/$ac_sys_release in
     		;;
     	esac
     else
-    	case `/usr/bin/arch` in
+    	case $($OSX_ARCH_PROG) in
     	i386) 
     		MACOSX_DEFAULT_ARCH="x86_64" 
     		;;
@@ -1988,8 +2005,8 @@ else
 fi
 
 AC_MSG_CHECKING(for dyld)
-case $ac_sys_system/$ac_sys_release in
-  Darwin/*)
+case $host in
+  *darwin*)
   	AC_DEFINE(WITH_DYLD, 1, 
         [Define if you want to use the new-style (Openstep, Rhapsody, MacOS)
          dynamic linker (dyld) instead of the old-style (NextStep) dynamic
@@ -2113,7 +2130,7 @@ then
 		# Use -undefined dynamic_lookup whenever possible (10.3 and later).
 		# This allows an extension to be used in any Python
 
-		if test ${MACOSX_DEPLOYMENT_TARGET} '>' 10.2
+		if test ${MACOSX_DEPLOYMENT_TARGET} > 10.2
 		then
 			if test "${enable_universalsdk}"; then
 				LDFLAGS="${UNIVERSAL_ARCH_FLAGS} -isysroot ${UNIVERSALSDK} ${LDFLAGS}"

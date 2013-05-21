@@ -39,7 +39,7 @@
 #include "ast.h"
 #include "pyarena.h"
 
-extern grammar _PyParser_Grammar; /* From graminit.c */
+PyAPI_DATA(grammar) _PyParser_Grammar; /* From graminit.c */
 
 #ifdef lint
 #include <note.h>

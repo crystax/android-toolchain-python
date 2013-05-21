@@ -27,6 +27,7 @@ MODLIBS=        _MODLIBS_
 VERSION=	@VERSION@
 srcdir=		@srcdir@
 VPATH=		@srcdir@
+MSYSVPATH=	@MSYSVPATH@
 abs_srcdir=	@abs_srcdir@
 abs_builddir=	@abs_builddir@
 build=		@build@
@@ -580,7 +581,7 @@ Modules/getpath.o: $(srcdir)/Modules/getpath.c Makefile
 		-DPREFIX='"$(prefix)"' \
 		-DEXEC_PREFIX='"$(exec_prefix)"' \
 		-DVERSION='"$(VERSION)"' \
-		-DVPATH='"$(VPATH)"' \
+		-DVPATH='"$(MSYSVPATH)"' \
 		-o $@ $(srcdir)/Modules/getpath.c
 
 # default sys.path calculations for windows platforms

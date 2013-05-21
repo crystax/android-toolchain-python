@@ -503,6 +503,17 @@ fi
 AC_MSG_RESULT([$DELIM])
 AC_SUBST(DELIM)
 
+# MSYS make uses a 'virtual' VPATH, but getpath.c uses
+# GetModuleFileNameW (replacing \ with /). This allows the user to
+# define the 'actual 'real' value. Note, it should contain / not \,
+# (/ is returned by "pwd -W")
+AC_ARG_VAR(MSYSVPATH,
+           For MSYS, allows specifying the real VPATH. Use / not \)
+if test -z "$MSYSVPATH"; then
+    MSYSVPATH=$srcdir
+fi
+AC_SUBST(MSYSVPATH)
+
 AC_MSG_CHECKING([for init system calls])
 AC_SUBST(INITSYS)
 case $host in

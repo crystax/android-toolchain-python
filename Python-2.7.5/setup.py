@@ -533,15 +533,16 @@ class PyBuildExt(build_ext):
         inc_dirs = self.compiler.include_dirs[:]
         lib_dirs = self.compiler.library_dirs[:]
         if not cross_compiling:
-            for d in (
-                '/usr/include',
-                ):
-                add_dir_to_list(inc_dirs, d)
-            for d in (
-                '/lib64', '/usr/lib64',
-                '/lib', '/usr/lib',
-                ):
-                add_dir_to_list(lib_dirs, d)
+            if not (sys.version.find('GCC') and host_platform in ['mingw', 'win32']):
+                for d in (
+                    '/usr/include',
+                    ):
+                    add_dir_to_list(inc_dirs, d)
+                for d in (
+                    '/lib64', '/usr/lib64',
+                    '/lib', '/usr/lib',
+                    ):
+                    add_dir_to_list(lib_dirs, d)
         exts = []
         missing = []
 

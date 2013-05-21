@@ -1116,6 +1116,9 @@
 /* Define if you want to compile in Python-specific mallocs */
 #undef WITH_PYMALLOC
 
+/* Define if we have external libffi. */
+#undef WITH_SYSTEM_LIBFFI
+
 /* Define if you want to compile in rudimentary thread support */
 #undef WITH_THREAD
 

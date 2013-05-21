@@ -117,7 +117,7 @@
 #endif
 
 #ifndef PYTHONPATH
-#define PYTHONPATH PREFIX "/lib/python" VERSION ":" \
+#define PYTHONPATH PREFIX "/lib/python" VERSION DELIMSTR \
               EXEC_PREFIX "/lib/python" VERSION "/lib-dynload"
 #endif
 

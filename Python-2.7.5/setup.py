@@ -33,6 +33,16 @@ host_platform = get_platform()
 # Were we compiled --with-pydebug or with #define Py_DEBUG?
 COMPILED_WITH_PYDEBUG = ('--with-pydebug' in sysconfig.get_config_var("CONFIG_ARGS"))
 
+with_build_sysroot_args = [arg.split('=')[-1] for arg in sysconfig.get_config_var("CONFIG_ARGS").split()
+                           if ('--with-build-sysroot' in arg)]
+
+if len(with_build_sysroot_args):
+    with_build_sysroot_specified = True
+    with_build_sysroots = [arg.replace("'",'') for arg in with_build_sysroot_args]
+else:
+    with_build_sysroot_specified = False
+    with_build_sysroots = ['/usr']
+
 # This global variable is used to hold the list of modules to be disabled.
 disabled_module_list = []
 
@@ -406,10 +416,11 @@ class PyBuildExt(build_ext):
             os.unlink(tmpfile)
 
         if multiarch_path_component != '':
-            add_dir_to_list(self.compiler.library_dirs,
-                            '/usr/lib/' + multiarch_path_component)
-            add_dir_to_list(self.compiler.include_dirs,
-                            '/usr/include/' + multiarch_path_component)
+            for sysroot in with_build_sysroots:
+                add_dir_to_list(self.compiler.library_dirs,
+                                sysroot + '/lib/' + multiarch_path_component)
+                add_dir_to_list(self.compiler.include_dirs,
+                                sysroot + '/include/' + multiarch_path_component)
             return
 
         if not find_executable('dpkg-architecture'):
@@ -427,10 +438,11 @@ class PyBuildExt(build_ext):
             if ret >> 8 == 0:
                 with open(tmpfile) as fp:
                     multiarch_path_component = fp.readline().strip()
-                add_dir_to_list(self.compiler.library_dirs,
-                                '/usr/lib/' + multiarch_path_component)
-                add_dir_to_list(self.compiler.include_dirs,
-                                '/usr/include/' + multiarch_path_component)
+                for sysroot in with_build_sysroots:
+                    add_dir_to_list(self.compiler.library_dirs,
+                                    sysroot + '/lib/' + multiarch_path_component)
+                    add_dir_to_list(self.compiler.include_dirs,
+                                    sysroot + '/include/' + multiarch_path_component)
         finally:
             os.unlink(tmpfile)
 
@@ -467,8 +479,7 @@ class PyBuildExt(build_ext):
             os.unlink(tmpfile)
 
     def detect_modules(self):
-        if not cross_compiling:
-            # Ensure that /usr/local is always used
+        if not cross_compiling and not with_build_sysroot_specified:
             add_dir_to_list(self.compiler.library_dirs, '/usr/local/lib')
             add_dir_to_list(self.compiler.include_dirs, '/usr/local/include')
         self.add_gcc_paths()
@@ -532,7 +543,9 @@ class PyBuildExt(build_ext):
         # be assumed that no additional -I,-L directives are needed.
         inc_dirs = self.compiler.include_dirs[:]
         lib_dirs = self.compiler.library_dirs[:]
-        if not cross_compiling:
+        # This bit was already questionable when I got here. I've
+        # disabled it when a build sysroot has been specified.
+        if not cross_compiling and not with_build_sysroot_specified:
             if not (sys.version.find('GCC') and host_platform in ['mingw', 'win32']):
                 for d in (
                     '/usr/include',
@@ -818,11 +831,11 @@ class PyBuildExt(build_ext):
             elif curses_library:
                 readline_libs.append(curses_library)
             elif self.compiler.find_library_file(lib_dirs +
-                                                     ['/usr/lib/termcap'],
+                                                     [sr + '/lib/termcap' for sr in with_build_sysroots],
                                                      'termcap'):
                 readline_libs.append('termcap')
             exts.append( Extension('readline', ['readline.c'],
-                                   library_dirs=['/usr/lib/termcap'],
+                                   library_dirs=[sr + '/lib/termcap' for sr in with_build_sysroots],
                                    extra_link_args=readline_extra_link_args,
                                    libraries=readline_libs) )
         else:
@@ -849,20 +862,20 @@ class PyBuildExt(build_ext):
                                libraries=_socket_libs) )
         # Detect SSL support for the socket module (via _ssl)
         search_for_ssl_incs_in = [
-                              '/usr/local/ssl/include',
-                              '/usr/contrib/ssl/include/'
+                              sr + sslinc for sr in with_build_sysroots
+                              for sslinc in ('/local/ssl/include', '/contrib/ssl/include')
                              ]
         ssl_incs = find_file('openssl/ssl.h', inc_dirs,
                              search_for_ssl_incs_in
                              )
         if ssl_incs is not None:
             krb5_h = find_file('krb5.h', inc_dirs,
-                               ['/usr/kerberos/include'])
+                               [sr + '/kerberos/include' for sr in with_build_sysroots])
             if krb5_h:
                 ssl_incs += krb5_h
         ssl_libs = find_library_file(self.compiler, 'ssl',lib_dirs,
-                                     ['/usr/local/ssl/lib',
-                                      '/usr/contrib/ssl/lib/'
+                                     [sr + ssllib for sr in with_build_sysroots
+									  for ssllib in ('/local/ssl/lib', '/contrib/ssl/lib')
                                      ] )
 
         if (ssl_incs is not None and

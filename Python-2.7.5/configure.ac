@@ -558,6 +558,17 @@ AC_SUBST(EXPORT_MACOSX_DEPLOYMENT_TARGET)
 CONFIGURE_MACOSX_DEPLOYMENT_TARGET=
 EXPORT_MACOSX_DEPLOYMENT_TARGET='#'
 
+# There are certain cases where we don't want build machine's
+# sysroot folders (/usr/include, /usr/lib, /usr/lib64 etc) to
+# be used. An example of where this is needed is if running
+# on a 64bit machine via linux32 running a 32bit targetting GCC.
+# Without this, 64bit libs will cause the linker to fail.
+# This also prevents add_multiarch_paths from being called.
+# You can specify this multiple times to add more prefixes.
+AC_MSG_CHECKING(for --with-build-sysroot)
+AC_ARG_WITH([build-sysroot],
+AS_HELP_STRING([--with-build-sysroot], [Select sysroot and ignore multilibs, even when not cross-compiling]))
+
 # checks for alternative programs
 
 # compiler flags are generated in two sets, BASECFLAGS and OPT.  OPT is just

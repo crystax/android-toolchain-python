@@ -42,6 +42,8 @@ def compile_dir(dir, maxlevels=10, ddir=None,
     success = 1
     for name in names:
         fullname = os.path.join(dir, name)
+        if sys.platform == "win32" and sys.version.find("GCC") >= 0:
+            fullname = fullname.replace('\\','/')
         if ddir is not None:
             dfile = os.path.join(ddir, name)
         else:

@@ -885,6 +885,7 @@ altbininstall:	$(BUILDPYTHON)
 	if test -f $(LDLIBRARY); then \
 		if test -n "$(DLLLIBRARY)" ; then \
 			$(INSTALL_SHARED) $(DLLLIBRARY) $(DESTDIR)$(BINDIR); \
+			mkdir -p $(DESTDIR)$(LIBPL); $(INSTALL_SHARED) $(LDLIBRARY) $(DESTDIR)$(LIBPL); \
 		else \
 			$(INSTALL_SHARED) $(LDLIBRARY) $(DESTDIR)$(LIBDIR)/$(INSTSONAME); \
 			if test $(LDLIBRARY) != $(INSTSONAME); then \

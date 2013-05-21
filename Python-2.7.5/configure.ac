@@ -21,7 +21,8 @@ if test "$cross_compiling" = yes; then
     if test -z "$PYTHON_FOR_BUILD"; then
         for interp in python$PACKAGE_VERSION python2 python; do
 	    which $interp >/dev/null 2>&1 || continue
-	    if $interp -c 'import sys;sys.exit(not (sys.version_info@<:@:2@:>@ >= (2,7) and sys.version_info@<:@0@:>@ < 3))'; then
+	    interp=$(which $interp)
+	    if $interp -c 'import sys;sys.exit(not (sys.version_info@<:@:3@:>@ >= (2,7,5) and sys.version_info@<:@0@:>@ < 3))'; then
 	        break
 	    fi
             interp=

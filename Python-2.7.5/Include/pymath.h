@@ -109,6 +109,8 @@ PyAPI_FUNC(void) _Py_set_387controlword(unsigned short);
  *    non-infinite value v sitting in an 80-bit x87 register such that
  *    v becomes infinite when spilled from the register to 64-bit memory.
  * Note: PC/pyconfig.h defines Py_IS_INFINITY as _isinf
+ * FIXME: PC/pyconfig.h defines Py_IS_INFINITY as (!_finite(X) && !_isnan(X))
+ * so that above note isn't correct !!!
  */
 #ifndef Py_IS_INFINITY
 #  if defined HAVE_DECL_ISINF && HAVE_DECL_ISINF == 1

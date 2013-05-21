@@ -9,9 +9,17 @@
 #endif /* HAVE_SYS_TYPES_H */
 
 #ifdef MS_WINDOWS
+#if !defined(__MINGW32__)
+/* avoid 'warning: "fileno" redefined' */
 #define fileno _fileno
+#endif
 /* can simulate truncate with Win32 API functions; see file_truncate */
+#ifndef HAVE_FTRUNCATE
+/* NOTE: autotool based build check and set it
+   FIXME: why isn't defined in PC/pyconfig.h ?
+ */
 #define HAVE_FTRUNCATE
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #endif

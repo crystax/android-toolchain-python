@@ -60,6 +60,18 @@ def get_msvcr():
     """Include the appropriate MSVC runtime library if Python was built
     with MSVC 7.0 or later.
     """
+    # FIXME: next code is from issue870382
+    # MS C-runtime libraries never support backward compatibility.
+    # Linking to a different library without to specify correct runtime
+    # version for the headers will link renamed functions to msvcrt.
+    # See issue3308: this piece of code is python problem even
+    # with correct w32api headers.
+    # Issue: for MSVC compiler we can get the version and from version
+    # to determine mcvcrt as code below. But what about if python is
+    # build with GCC compiler?
+    # Output of sys.version is information for python build on first
+    # line, on the next line is information for the compiler and the
+    # output lack information for the C-runtime.
     msc_pos = sys.version.find('MSC v.')
     if msc_pos != -1:
         msc_ver = sys.version[msc_pos+6:msc_pos+10]
@@ -77,6 +89,8 @@ def get_msvcr():
             return ['msvcr90']
         else:
             raise ValueError("Unknown MS Compiler version %s " % msc_ver)
+    else:
+        return []
 
 
 class CygwinCCompiler (UnixCCompiler):
@@ -85,6 +99,9 @@ class CygwinCCompiler (UnixCCompiler):
     obj_extension = ".o"
     static_lib_extension = ".a"
     shared_lib_extension = ".dll"
+    # FIXME: dylib_... = ".dll.a" is not enought for binutils
+    # loader on win32 platform !!!
+    dylib_lib_extension = ".dll.a"
     static_lib_format = "lib%s%s"
     shared_lib_format = "%s%s"
     exe_extension = ".exe"
@@ -103,6 +120,10 @@ class CygwinCCompiler (UnixCCompiler):
                 "Compiling may fail because of undefined preprocessor macros."
                 % details)
 
+        # Next line of code is problem for cross-compiled enviroment:
+        # NOTE: GCC cross-compiler is prefixed by the <hostarch>-<hostos>-
+        # and by default binaries are installed in same directory
+        # as native compiler.
         self.gcc_version, self.ld_version, self.dllwrap_version = \
             get_versions()
         self.debug_print(self.compiler_type + ": gcc %s, ld %s, dllwrap %s\n" %
@@ -127,6 +148,9 @@ class CygwinCCompiler (UnixCCompiler):
         else:
             shared_option = "-mdll -static"
 
+        # FIXME:
+        # Hard-code may override unix-compiler settings and isn't
+        # possible to use Makefile variables to pass correct flags !
         # Hard-code GCC because that's what this is all about.
         # XXX optimization, warnings etc. should be customizable.
         self.set_executables(compiler='gcc -mcygwin -O -Wall',
@@ -271,12 +295,20 @@ class CygwinCCompiler (UnixCCompiler):
         if output_dir is None: output_dir = ''
         obj_names = []
         for src_name in source_filenames:
-            # use normcase to make sure '.rc' is really '.rc' and not '.RC'
-            (base, ext) = os.path.splitext (os.path.normcase(src_name))
+            # FIXME: "bogus checks for suffix" - as example the commented
+            # by #BOGUS# code break valid assembler suffix ".S" !
+            #BOGUS## use normcase to make sure '.rc' is really '.rc' and not '.RC'
+            #BOGUS#base, ext = os.path.splitext(os.path.normcase(src_name))
+            base, ext = os.path.splitext (src_name)
+            ext_normcase = os.path.normcase(ext)
+            if ext_normcase in ['.rc','.res']:
+                ext = ext_normcase
             if ext not in (self.src_extensions + ['.rc','.res']):
                 raise UnknownFileError, \
                       "unknown file type '%s' (from '%s')" % \
                       (ext, src_name)
+            base = os.path.splitdrive(base)[1] # Chop off the drive
+            base = base[os.path.isabs(base):]  # If abs, chop off leading /
             if strip_dir:
                 base = os.path.basename (base)
             if ext == '.res' or ext == '.rc':

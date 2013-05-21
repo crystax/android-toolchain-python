@@ -38,6 +38,7 @@ class ConfigTestCase(support.LoggingSilencer,
         self.assertEqual(len(self._logs), numlines+1)
 
     def test_search_cpp(self):
+        # TODO: mingw host ?
         if sys.platform == 'win32':
             return
         pkg_dir, dist = self.create_dist()

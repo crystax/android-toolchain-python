@@ -256,6 +256,12 @@ typedef union _gc_head {
         Py_ssize_t gc_refs;
     } gc;
     long double dummy;  /* force worst-case alignment */
+#if defined(__MINGW32__)
+/* FIXME: what about 64-bit platforms ?
+ * see http://mail.python.org/pipermail/python-dev/2009-July/090724.html
+ */
+	double dummy1;
+#endif
 } PyGC_Head;
 
 extern PyGC_Head *_PyGC_generation0;

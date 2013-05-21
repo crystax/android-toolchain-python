@@ -48,6 +48,14 @@
 #include "addrinfo.h"
 #endif
 
+#ifndef IN_EXPERIMENTAL
+#define IN_EXPERIMENTAL(i)  (((i) & 0xe0000000U) == 0xe0000000U)
+#endif
+
+#ifndef IN_LOOPBACKNET
+#define IN_LOOPBACKNET	    127
+#endif
+
 #define SUCCESS 0
 #define YES 1
 #define NO  0

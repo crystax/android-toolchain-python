@@ -11,6 +11,11 @@
 #include <errno.h>
 #include <sys/time.h>
 
+#ifdef MS_WINDOWS
+/* on windows select don't work on files */
+#undef HAVE_SELECT
+#endif
+
 #if defined(HAVE_SETLOCALE)
 /* GNU readline() mistakenly sets the LC_CTYPE locale.
  * This is evil.  Only the user or the app's main() should do this!
@@ -892,6 +897,10 @@ setup_readline(void)
     /* Allow $if term= in .inputrc to work */
     rl_terminal_name = getenv("TERM");
 #endif
+#ifdef MS_WINDOWS
+    /* FIXME: need more test before to skip this hack */
+    rl_terminal_name = "dumb";
+#endif
     /* Force rebind of TAB to insert-tab */
     rl_bind_key('\t', rl_insert);
     /* Bind both ESC-TAB and ESC-ESC to the completion function */
@@ -1150,6 +1159,9 @@ initreadline(void)
     if (m == NULL)
         return;
 
+#ifndef MS_WINDOWS
+    /* FIXME: windows readline(prompt) may not work ? */
     PyOS_ReadlineFunctionPointer = call_readline;
+#endif
     setup_readline();
 }

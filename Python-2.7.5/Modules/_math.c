@@ -5,6 +5,29 @@
 #include <float.h>
 #include "_math.h"
 
+#if defined(__MINGW32__)
+#  define USE_MINGWEX_MATH
+#endif
+
+#ifdef USE_MINGWEX_MATH
+/* To avoid problems with many MSVCRT implementations we will
+ * use a work-around
+ */
+#define MAXLOG 7.09782712893383996843E2
+#define MINLOG -7.45133219101941108420E2
+
+static double fake_exp (double x) {
+  if (isnan(x)) { return(x); }
+  if (isinf(x)) { return(x > 0.0 ? x : 0.0); }
+  if (x > MAXLOG) { errno = ERANGE; return(INFINITY); }
+/* the correct code is to set ERANGE but why windows build bot don't fail ? */
+  if (x < MINLOG) { errno = ERANGE; return(0.0); }
+
+  return(exp(x));
+}
+#define exp	fake_exp
+#endif /*def USE_MINGWEX_MATH*/
+
 /* The following copyright notice applies to the original
    implementations of acosh, asinh and atanh. */
 
@@ -179,9 +202,28 @@ _Py_expm1(double x)
         if (u == 1.0)
             return x;
         else
+#if 0
             return (u - 1.0) * x / log(u);
+#else
+        {   /* avoid precision error */
+            double r;
+            r = x / log(u);
+            return((u - 1.0) * r);
+        }
+#endif
     }
     else
+#ifdef USE_MINGWEX_MATH
+/* to avout errors with correct fake_exp:
+  expm10211:expm1(-1420.0): expected -1.0, got 'OverflowError'
+  expm10212:expm1(-1450.0): expected -1.0, got 'OverflowError'
+  expm10213:expm1(-1500.0): expected -1.0, got 'OverflowError'
+  expm10214:expm1(-1e+50): expected -1.0, got 'OverflowError'
+  expm10215:expm1(-1.79e+308): expected -1.0, got 'OverflowError'
+*/
+        if (x < MINLOG) { return(-1.0); }
+        else
+#endif
         return exp(x) - 1.0;
 }
 

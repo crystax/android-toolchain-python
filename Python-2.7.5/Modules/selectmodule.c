@@ -108,9 +108,10 @@ seq2set(PyObject *seq, fd_set *set, pylist fd2obj[FD_SETSIZE + 1])
         v = PyObject_AsFileDescriptor( o );
         if (v == -1) goto finally;
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__MINGW32__)
+/* FIXME: why not #ifdef Py_SOCKET_FD_CAN_BE_GE_FD_SETSIZE ? */
         max = 0;                             /* not used for Win32 */
-#else  /* !_MSC_VER */
+#else  /* !_MSC_VER & !__MINGW32__ */
         if (!_PyIsSelectable_fd(v)) {
             PyErr_SetString(PyExc_ValueError,
                         "filedescriptor out of range in select()");
@@ -118,7 +119,7 @@ seq2set(PyObject *seq, fd_set *set, pylist fd2obj[FD_SETSIZE + 1])
         }
         if (v > max)
             max = v;
-#endif /* _MSC_VER */
+#endif /* _MSC_VER, __MINGW32__ */
         FD_SET(v, set);
 
         /* add object and its file descriptor to the list */

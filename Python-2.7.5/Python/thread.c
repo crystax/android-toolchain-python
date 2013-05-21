@@ -7,6 +7,16 @@
 
 #include "Python.h"
 
+#ifdef __MINGW32__
+/* GCC 4.4+ (mingw) support posix threads!
+  Note: macro __MINGW_GCC is defined for GCC 4.4+ but
+  not for GCC 3.4.5 (last stable from 3.x )
+  Instead to use __MINGW_GCC we will use more common
+  __MINGW32__ to prevent case when in GCC 3.4.5 build
+  envirionment is installed posix thread package.
+ */
+# undef HAVE_PTHREAD_H
+#endif
 
 #ifndef _POSIX_THREADS
 /* This means pthreads are not implemented in libc headers, hence the macro

@@ -389,7 +389,7 @@ def main(tests=None, testdir=None, verbose=0, quiet=False,
             found_garbage = []
 
     if single:
-        filename = os.path.join(TEMPDIR, 'pynexttest')
+        filename = os.path.join(tempfile.gettempdir(), 'pynexttest')
         try:
             fp = open(filename, 'r')
             next_test = fp.read().strip()
@@ -1542,8 +1542,7 @@ if __name__ == '__main__':
     # to keep the test files in a subfolder.  It eases the cleanup of leftover
     # files using command "make distclean".
     if sysconfig.is_python_build():
-        TEMPDIR = os.path.join(sysconfig.get_config_var('srcdir'), 'build')
-        TEMPDIR = os.path.abspath(TEMPDIR)
+        TEMPDIR = os.path.abspath('build')
         if not os.path.exists(TEMPDIR):
             os.mkdir(TEMPDIR)
 

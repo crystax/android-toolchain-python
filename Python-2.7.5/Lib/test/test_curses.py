@@ -167,11 +167,16 @@ def module_funcs(stdscr):
     curses.delay_output(1)
     curses.echo() ; curses.echo(1)
 
-    f = tempfile.TemporaryFile()
+    fx = tempfile.TemporaryFile()
+    # cf tempfile.py TemporaryFile vs NamedTemporaryFile
+    if os.name != 'posix' or os.sys.platform == 'cygwin':
+        f = fx.file
+    else:
+        f = fx
     stdscr.putwin(f)
     f.seek(0)
     curses.getwin(f)
-    f.close()
+    fx.close()
 
     curses.halfdelay(1)
     curses.intrflush(1)

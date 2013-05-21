@@ -3166,8 +3166,24 @@ static PPROC FindAddress(void *handle, char *name, PyObject *type)
     mangled_name = alloca(strlen(name) + 1 + 1 + 1 + 3); /* \0 _ @ %d */
     if (!mangled_name)
         return NULL;
+    /* FIXME: for stdcall decorated export functions MSVC compiler add
+     * underscore, but GCC compiler create them without.
+     * As well functions from system libraries are without underscore.
+     * This is visible by example for _ctypes_test.pyd module.
+     * Solutions:
+     * - If a python module is build with gcc option --add-stdcall-alias
+     * the module will contain XXX as alias for function XXX@ as result
+     * first search in this method will succeed.
+     * - Distutil may use compiler to create def-file, to modify it as
+     * add underscore alias and with new def file to create module.
+     * - Or may be just to search for function without underscore.
+     */
     for (i = 0; i < 32; ++i) {
         sprintf(mangled_name, "_%s@%d", name, i*4);
+        address = (PPROC)GetProcAddress(handle, mangled_name);
+        if (address)
+            return address;
+        sprintf(mangled_name, "%s@%d", name, i*4);
         address = (PPROC)GetProcAddress(handle, mangled_name);
         if (address)
             return address;

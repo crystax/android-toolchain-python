@@ -1444,6 +1444,16 @@ then
   CFLAGS=$save_CFLAGS
 fi
 
+AC_MSG_CHECKING(for NT threads)
+AC_CACHE_VAL(ac_cv_ntthread,
+[AC_LINK_IFELSE([
+	AC_LANG_PROGRAM([], [_beginthread(0, 0, 0);])],
+ac_cv_ntthread=yes,
+ac_cv_ntthread=no)])
+AC_MSG_RESULT([$ac_cv_ntthread])
+
+if test $ac_cv_ntthread  = no
+then
 # On some compilers, pthreads are available without further options
 # (e.g. MacOS X). On some of these systems, the compiler will not
 # complain if unaccepted options are passed (e.g. gcc on Mac OS X).
@@ -1561,19 +1571,6 @@ int main(){
 CC="$ac_save_cc"])
 AC_MSG_RESULT($ac_cv_pthread)
 fi
-
-if test "x$ac_cv_kpthread" = xno && \
-   test "x$ac_cv_kthread" = xno && \
-   test "x$ac_cv_pthread" = xno && \
-   test "x$ac_cv_pthread_is_default" = xno
-then
-	AC_MSG_CHECKING(for NT threads)
-	AC_CACHE_VAL(ac_cv_ntthread,
-	[AC_LINK_IFELSE([
-		AC_LANG_PROGRAM([], [_beginthread(0, 0, 0);])],
-	ac_cv_ntthread=yes,
-	ac_cv_ntthread=no)])
-	AC_MSG_RESULT([$ac_cv_ntthread])
 fi
 
 # If we have set a CC compiler flag for thread support then
@@ -1631,8 +1628,8 @@ dnl AC_MSG_RESULT($cpp_type)
 AC_HEADER_STDC
 AC_CHECK_HEADERS(asm/types.h conio.h curses.h direct.h dlfcn.h errno.h \
 fcntl.h grp.h \
-ieeefp.h io.h langinfo.h libintl.h ncurses.h poll.h process.h pthread.h \
-shadow.h signal.h stdint.h stropts.h termios.h thread.h \
+ieeefp.h io.h langinfo.h libintl.h ncurses.h poll.h process.h \
+shadow.h signal.h stdint.h stropts.h termios.h \
 unistd.h utime.h \
 sys/audioio.h sys/bsdtty.h sys/epoll.h sys/event.h sys/file.h sys/loadavg.h \
 sys/lock.h sys/mkdev.h sys/modem.h \
@@ -1643,6 +1640,14 @@ sys/resource.h netpacket/packet.h sysexits.h bluetooth.h \
 bluetooth/bluetooth.h linux/tipc.h spawn.h util.h winsock2.h)
 AC_HEADER_DIRENT
 AC_HEADER_MAJOR
+
+# If using nt threads, don't look for pthread.h or thread.h
+if test "x$ac_cv_ntthread" = xno ; then
+AC_HEADER_STDC
+AC_CHECK_HEADERS(pthread.h thread.h)
+AC_HEADER_DIRENT
+AC_HEADER_MAJOR
+fi
 
 # On Solaris, term.h requires curses.h
 AC_CHECK_HEADERS(term.h,,,[
@@ -2366,9 +2371,11 @@ AC_CHECK_LIB(dld, shl_load)	# Dynamic linking for HP-UX
 
 # only check for sem_init if thread support is requested
 if test "$with_threads" = "yes" -o -z "$with_threads"; then
-    AC_SEARCH_LIBS(sem_init, pthread rt posix4) # 'Real Time' functions on Solaris
-						# posix4 on Solaris 2.6
-						# pthread (first!) on Linux
+	if test "$ac_cv_ntthread" = "no" -o -z "$ac_cv_ntthread"; then
+		AC_SEARCH_LIBS(sem_init, pthread rt posix4) # 'Real Time' functions on Solaris
+							# posix4 on Solaris 2.6
+							# pthread (first!) on Linux
+	fi
 fi
 
 # check if we need libintl for locale functions

@@ -130,6 +130,13 @@ def convert_path (pathname):
         paths.remove('.')
     if not paths:
         return os.curdir
+    # On Windows, if paths is ['C:','folder','subfolder'] then
+    # os.path.join(*paths) will return 'C:folder\subfolder' which
+    # is thus relative to the CWD on that drive. So we work around
+    # this by adding a \ to path[0]
+    if (len(paths) > 0 and paths[0].endswith(':') and
+        sys.platform == "win32" and sys.version.find("GCC") >= 0):
+        paths[0] += '\\'
     return os.path.join(*paths)
 
 # convert_path ()

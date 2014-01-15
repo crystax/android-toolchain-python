@@ -480,14 +480,32 @@ class PyBuildExt(build_ext):
                         elif is_gcc and line.startswith("LIBRARY_PATH"):
                             for d in line.strip().split("=")[1].split(":"):
                                 d = os.path.normpath(d)
-                                if '/gcc/' not in d:
+                                if '/lib/gcc/' not in d:
                                     add_dir_to_list(self.compiler.library_dirs,
                                                     d)
-                        elif is_gcc and in_incdirs and '/gcc/' not in line:
+                        elif is_gcc and in_incdirs and '/lib/gcc/' not in line:
                             add_dir_to_list(self.compiler.include_dirs,
                                             line.strip())
         finally:
             os.unlink(tmpfile)
+        # Older gcc -v doesn't print LIBRARY_PATH.  Use -print-search-dirs and look for line
+        # starts with "libraries:".  This is equivalent to LIBRARY_PATH in the above for
+        # morden gcc, except non-exsistance directores are also printed, which is fine for
+        # our purpose
+        if is_gcc and not self.compiler.library_dirs:
+            ret = os.system('%s -print-search-dirs 1>%s 2>/dev/null' % (gcc, tmpfile))
+            try:
+                if ret >> 8 == 0:
+                    with open(tmpfile) as fp:
+                        for line in fp.readlines():
+                            if line.startswith("libraries:"):
+                                for d in line.strip().split("=")[1].split(":"):
+                                    d = os.path.normpath(d)
+                                    if '/lib/gcc/' not in d:
+                                        add_dir_to_list(self.compiler.library_dirs,
+                                                        d)
+            finally:
+                os.unlink(tmpfile)
 
     def detect_modules(self):
         if not cross_compiling and not with_build_sysroot_specified:

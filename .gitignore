@@ -1,0 +1,4 @@
+*.pyc
+*.pyo
+
+Python-2.7.5/Parser/pgen.stamp

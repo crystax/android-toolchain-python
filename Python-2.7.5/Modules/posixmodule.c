@@ -578,13 +578,13 @@ _PyVerify_fd_dup2(int fd1, int fd2)
 #endif
 
 /* Return a dictionary corresponding to the POSIX environment table */
-#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
+#if defined(WITH_NEXT_FRAMEWORK) || defined(__APPLE__)
 /* On Darwin/MacOSX a shared library or framework has no access to
 ** environ directly, we must obtain it with _NSGetEnviron(). See also
 ** man environ(7).
 */
 #include <crt_externs.h>
-static char **environ;
+#define environ (*_NSGetEnviron())
 #elif !defined(_MSC_VER) && !defined(__MINGW32__) && ( !defined(__WATCOMC__) || defined(__QNX__) )
 extern char **environ;
 #endif /* !_MSC_VER */
@@ -601,10 +601,6 @@ convertenviron(void)
     d = PyDict_New();
     if (d == NULL)
         return NULL;
-#if defined(WITH_NEXT_FRAMEWORK) || (defined(__APPLE__) && defined(Py_ENABLE_SHARED))
-    if (environ == NULL)
-        environ = *_NSGetEnviron();
-#endif
     if (environ == NULL)
         return d;
     /* This part ignores errors */

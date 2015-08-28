@@ -34,13 +34,23 @@ installed_prefix ()
 prefix_build="@prefix@"
 prefix_real=$(installed_prefix "$0")
 
-# Use sed to fix paths from their built to locations to their installed to locations.
-prefix=$(echo "$prefix_build" | sed "s#$prefix_build#$prefix_real#")
 exec_prefix_build="@exec_prefix@"
-exec_prefix=$(echo "$exec_prefix_build" | sed "s#$exec_prefix_build#$prefix_real#")
-includedir=$(echo "@includedir@" | sed "s#$prefix_build#$prefix_real#")
-libdir=$(echo "@libdir@" | sed "s#$prefix_build#$prefix_real#")
-CFLAGS=$(echo "@CFLAGS@" | sed "s#$prefix_build#$prefix_real#")
+exec_prefix_real="$prefix_real"
+
+# Use sed to fix paths from their built to locations to their installed to locations.
+
+# The @includedir@ and @libdir@ macros can be '$prefix/include' and the like, so we
+# need to avoid replacing the prefix multiple times.
+prefix="$prefix_build"
+exec_prefix="$exec_prefix_build"
+
+includedir=$(echo "@includedir@" | sed "s#^$prefix_build#$prefix_real#")
+libdir=$(echo "@libdir@" | sed "s#^$prefix_build#$prefix_real#")
+
+prefix="$prefix_real"
+exec_prefix="$exec_prefix_real"
+
+CFLAGS="@CFLAGS@"
 VERSION="@VERSION@"
 LIBM="@LIBM@"
 LIBC="@LIBC@"

@@ -23,7 +23,6 @@
 #
 
 # include common function and variable definitions
-NDK_BUILDTOOLS_PATH="$(dirname $0)"
 . "$NDK_BUILDTOOLS_PATH/prebuilt-common.sh"
 . "$NDK_BUILDTOOLS_PATH/common-build-host-funcs.sh"
 

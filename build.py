@@ -17,69 +17,20 @@
 """Builds Python for the NDK."""
 from __future__ import print_function
 
-import argparse
-import inspect
 import os
-import subprocess
-import sys
+import site
+
+site.addsitedir(os.path.join(os.path.dirname(__file__), '../../ndk/build/lib'))
+
+import build_support
 
 
-def android_path(path=''):
-    top = os.getenv('ANDROID_BUILD_TOP', '')
-    return os.path.realpath(os.path.join(top, path))
-
-
-def get_default_package_dir():
-    return android_path('out/ndk')
-
-
-def get_default_host():
-    if sys.platform in ('linux', 'linux2'):
-        return 'linux'
-    elif sys.platform == 'darwin':
-        return 'darwin'
-    else:
-        raise RuntimeError('Unsupported host: {}'.format(sys.platform))
-
-
-class ArgParser(argparse.ArgumentParser):
-    def __init__(self):
-        super(ArgParser, self).__init__(
-            description=inspect.getdoc(sys.modules[__name__]),
-            formatter_class=argparse.RawDescriptionHelpFormatter)
-
-        self.add_argument(
-            '--host', choices=('darwin', 'linux', 'windows', 'windows64'),
-            default=get_default_host(),
-            help='Build binaries for given OS (e.g. linux).')
-        self.add_argument(
-            '--package-dir', help='Directory to place the packaged GCC.',
-            default=get_default_package_dir())
-
-
-def main():
-    args = ArgParser().parse_args()
-
-    if 'ANDROID_BUILD_TOP' not in os.environ:
-        top = os.path.join(os.path.dirname(__file__), '../..')
-        os.environ['ANDROID_BUILD_TOP'] = os.path.realpath(top)
-
-    os.chdir(android_path('toolchain/python'))
-
-    toolchain_path = android_path('toolchain')
-    ndk_path = android_path('ndk')
-
-    ndk_build_tools_path = android_path('ndk/build/tools')
-    build_env = dict(os.environ)
-    build_env['NDK_BUILDTOOLS_PATH'] = ndk_build_tools_path
-    build_env['ANDROID_NDK_ROOT'] = ndk_path
-
-    toolchain_dir_arg = '--toolchain-src-dir={}'.format(toolchain_path)
-    package_dir_arg = '--package-dir={}'.format(args.package_dir)
+def main(args):
+    toolchain_dir_arg = '--toolchain-src-dir={}'.format(
+        build_support.toolchain_path())
 
     build_cmd = [
-        'bash', 'build-python.sh', toolchain_dir_arg, package_dir_arg,
-        '--verbose',
+        'bash', 'build-python.sh', toolchain_dir_arg,
     ]
 
     if args.host in ('windows', 'windows64'):
@@ -88,7 +39,7 @@ def main():
     if args.host != 'windows':
         build_cmd.append('--try-64')
 
-    subprocess.check_call(build_cmd, env=build_env)
+    build_support.build(build_cmd, args)
 
 if __name__ == '__main__':
-    main()
+    build_support.run(main)

@@ -441,7 +441,7 @@ package_host_python ()
     local SRCDIR="$(python_ndk_install_dir $1 $2)"
     # This is similar to BLDDIR=${BLDDIR%%$SRCDIR} (and requires we use windows and not windows-x86)
     BLDDIR=$(echo "$BLDDIR" | sed "s/$(echo "$SRCDIR" | sed -e 's/\\/\\\\/g' -e 's/\//\\\//g' -e 's/&/\\\&/g')//g")
-    local PACKAGENAME=ndk-python-$(install_dir_from_host_tag $1).tar.bz2
+    local PACKAGENAME=ndk-python-$1.tar.bz2
     local PACKAGE="$PACKAGE_DIR/$PACKAGENAME"
 
     dump "$(bh_host_text) $PACKAGENAME: Packaging"

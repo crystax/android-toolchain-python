@@ -444,6 +444,9 @@ package_host_python ()
     local PACKAGENAME=ndk-python-$1.tar.bz2
     local PACKAGE="$PACKAGE_DIR/$PACKAGENAME"
 
+    # Remove python tests
+    find $BLDDIR/prebuilt/lib/python* -name test -exec rm -rf {} \;
+
     dump "$(bh_host_text) $PACKAGENAME: Packaging"
     run pack_archive "$PACKAGE" "$BLDDIR" "$SRCDIR"
 }

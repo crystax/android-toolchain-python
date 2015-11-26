@@ -29,6 +29,7 @@ def get_platform():
         return 'osf1'
     return sys.platform
 host_platform = get_platform()
+print "Detected host platform: %s" % host_platform
 
 # On MSYS, os.system needs to be wrapped with sh.exe
 # as otherwise all the io redirection will fail.
@@ -187,7 +188,7 @@ class PyBuildExt(build_ext):
         # Detect which modules should be compiled
         missing = self.detect_modules()
 
-        # Remove modules that are present on the disabled list
+	# Remove modules that are present on the disabled list
         extensions = [ext for ext in self.extensions
                       if ext.name not in disabled_module_list]
         # move ctypes to the end, it depends on other modules
@@ -223,7 +224,7 @@ class PyBuildExt(build_ext):
         # Python header files
         headers = [sysconfig.get_config_h_filename()]
         headers += glob(os.path.join(sysconfig.get_path('include'), "*.h"))
-        for ext in self.extensions[:]:
+	for ext in self.extensions[:]:
             ext.sources = [ find_module_file(filename, moddirlist)
                             for filename in ext.sources ]
             if ext.depends is not None:
@@ -237,10 +238,15 @@ class PyBuildExt(build_ext):
             # platform specific include directories
             ext.include_dirs.extend(incdirlist)
 
-            # If a module has already been built statically,
-            # don't build it here
-            if ext.name in sys.builtin_module_names:
-                self.extensions.remove(ext)
+	    # zuav: dirty hack:
+	    #    when cross-compiling from linux to windows all standard extensions are not built
+	    #    because they considered as already built
+            if not host_platform == 'win32':
+		# If a module has already been built statically,
+		# don't build it here
+		if ext.name in sys.builtin_module_names:
+		    print "builtin extension: %s" % ext.name
+                    self.extensions.remove(ext)
 
         # Parse Modules/Setup and Modules/Setup.local to figure out which
         # modules are turned on in the file.

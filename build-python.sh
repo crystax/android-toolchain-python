@@ -286,8 +286,9 @@ build_host_python ()
         elif [ $1 = windows-x86 -o $1 = windows-x86_64 ]; then
             echo "ac_cv_file__dev_ptmx=no"              > $CFG_SITE
             echo "ac_cv_file__dev_ptc=no"              >> $CFG_SITE
-            CFLAGS=$CFLAGS" -D__USE_MINGW_ANSI_STDIO=1"
-            CXXFLAGS=$CXXFLAGS" -D__USE_MINGW_ANSI_STDIO=1"
+            export CFLAGS=$CFLAGS" -D__USE_MINGW_ANSI_STDIO=1 -static-libgcc"
+            export CXXFLAGS=$CXXFLAGS" -D__USE_MINGW_ANSI_STDIO=1 -static-libgcc"
+            export LDFLAGS="$LDFLAGS -static-libgcc"
         elif [ $1 = linux-x86 -o $1 = linux-x86_64 ]; then
             echo "ac_cv_file__dev_ptmx=yes"             > $CFG_SITE
             echo "ac_cv_file__dev_ptc=no"              >> $CFG_SITE

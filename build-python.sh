@@ -445,7 +445,10 @@ package_host_python ()
     local PACKAGE="$PACKAGE_DIR/$PACKAGENAME"
 
     # Remove python tests
-    find $BLDDIR/prebuilt/lib/python* -name test -exec rm -rf {} \;
+    find $BLDDIR/host-tools/lib/python* -name test -o -name tests -exec rm -rf {} \;
+
+    # Remove precompiled files
+    find $BLDDIR/host-tools/lib/python* -name "*.pyc" -o -name "*.pyo" -exec rm -rf {} \;
 
     dump "$(bh_host_text) $PACKAGENAME: Packaging"
     run pack_archive "$PACKAGE" "$BLDDIR" "$SRCDIR"

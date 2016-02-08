@@ -2337,7 +2337,7 @@ then
 	case $host in
 	*-*-mingw*)
 		if test x$enable_shared = xyes; then
-			LINKFORSHARED='-Wl,--out-implib=$(LDLIBRARY)'
+			LINKFORSHARED='-Wl,--out-implib=$(LDLIBRARY) -static-libgcc'
 		fi;;
 	esac
 fi

@@ -524,7 +524,7 @@ $(PYTHONFRAMEWORKDIR)/Versions/$(VERSION)/$(PYTHONFRAMEWORK): \
 # for a shared core library; otherwise, this rule is a noop.
 $(DLLLIBRARY) libpython$(VERSION).dll.a: $(LIBRARY_OBJS)
 	if test -n "$(DLLLIBRARY)"; then \
-		$(LDSHARED) -Wl,--out-implib=$@ -o $(DLLLIBRARY) $^ \
+		$(LDSHARED) -Wl,--out-implib=$@ -o $(DLLLIBRARY) -static-libgcc $^ \
 			$(LIBS) $(MODLIBS) $(SYSLIBS) $(LDLAST); \
 	else true; \
 	fi

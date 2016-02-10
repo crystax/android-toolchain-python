@@ -173,8 +173,14 @@ class UnixCCompiler(CCompiler):
             if extra_postargs:
                 ld_args.extend(extra_postargs)
 
-            # HACK: Avoid dependency on libgcc dll on mingw.
-            ld_args.extend(["-static-libgcc"])
+            # NDK HACK:
+            # Avoid dependency on libgcc dll on mingw. -static-libgcc works
+            # while compiling for the host and windows, but not darwin. We
+            # can't easily tell whether we're compiling for windows or the
+            # host, so rely on the fact that we don't cross-compile darwin
+            # binaries on linux.
+            if sys.platform[:6] != "darwin":
+                ld_args.extend(["-static-libgcc"])
 
             self.mkpath(os.path.dirname(output_filename))
             try:

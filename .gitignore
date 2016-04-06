@@ -1,4 +1,5 @@
 *.pyc
 *.pyo
-
-Python-2.7.5/Parser/pgen.stamp
+/Python-*/Lib/plat-win32/STDDEF.py
+/Python-*/Lib/plat-win32/regen
+/Python-*/Parser/pgen.stamp
